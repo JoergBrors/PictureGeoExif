@@ -12,6 +12,11 @@ using System.Linq;
 using PictureExifclone.Services;
 using PictureExifclone.Models;
 using System.Windows.Input;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp.Drawing.Processing;
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.Fonts;
 
 namespace PictureExifclone
 {
@@ -301,9 +306,24 @@ namespace PictureExifclone
 
                         var imageItem = new ImageItem
                         {
-                            FilePath = filePath,
-                            Thumbnail = imageService.CreateThumbnail(filePath)
+                            FilePath = filePath
                         };
+
+                        // Thumbnail erstellen mit Fehlerbehandlung
+                        try
+                        {
+                            imageItem.Thumbnail = imageService.CreateThumbnail(filePath);
+                            
+                            if (imageItem.Thumbnail == null)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"Thumbnail ist NULL für: {Path.GetFileName(filePath)}");
+                            }
+                        }
+                        catch (Exception thumbEx)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Fehler beim Erstellen des Thumbnails für {Path.GetFileName(filePath)}: {thumbEx.Message}");
+                            // Weiter ohne Thumbnail
+                        }
 
                         ReadExifData(imageItem);
                         images.Add(imageItem);
@@ -394,6 +414,11 @@ namespace PictureExifclone
             {
                 try
                 {
+                    // Verwende den vollständigen ImageEditorWindow mit allen Features:
+                    // - Zuschneiden
+                    // - Text/Wasserzeichen
+                    // - Geo-Wasserzeichen
+                    // - Verpixeln
                     var editor = new ImageEditorWindow(
                         imageItem.FilePath,
                         imageItem.Latitude,
@@ -404,6 +429,14 @@ namespace PictureExifclone
 
                     if (editor.ShowDialog() == true && editor.EditedImageBytes != null)
                     {
+                        // Altes Thumbnail freigeben BEVOR das neue Bild gespeichert wird
+                        if (imageItem.Thumbnail != null)
+                        {
+                            imageItem.Thumbnail = null;
+                            GC.Collect();
+                            GC.WaitForPendingFinalizers();
+                        }
+
                         string newPath = imageService.SaveEditedImage(
                             editor.EditedImageBytes,
                             imageItem.FileName,
@@ -414,7 +447,13 @@ namespace PictureExifclone
                             imageService.WriteGpsToImage(newPath, imageItem.Latitude!.Value, imageItem.Longitude!.Value);
                         }
 
+                        // Pfad aktualisieren
                         imageItem.FilePath = newPath;
+                        
+                        // Kurze Verzögerung um sicherzustellen, dass die Datei verfügbar ist
+                        System.Threading.Thread.Sleep(100);
+                        
+                        // Neues Thumbnail erstellen mit Cache-Umgehung
                         imageItem.Thumbnail = imageService.CreateThumbnail(newPath);
 
                         MessageBox.Show($"Bearbeitetes Bild gespeichert:\n{newPath}", "Erfolg", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -422,7 +461,7 @@ namespace PictureExifclone
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Fehler beim Bearbeiten: {ex.Message}", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show($"Fehler beim Bearbeiten: {ex.Message}\n\nDetails: {ex.StackTrace}", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
         }

@@ -72,64 +72,68 @@
                                 <DataTemplate>
                                     <Border Style="{StaticResource ImageTileStyle}" 
                                             Width="180"
-                                            MouseLeftButtonDown="ImageTile_Click">
+                                            MouseLeftButtonDown="ImageTile_Click"
+                                            ToolTip="{Binding FileName}">
                                         <Grid>
                                             <Grid.RowDefinitions>
-                                                <RowDefinition Height="120"/>
-                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="150"/>
                                                 <RowDefinition Height="Auto"/>
                                                 <RowDefinition Height="Auto"/>
                                             </Grid.RowDefinitions>
                                             
-                                            <!-- Thumbnail -->
-                                            <Grid Grid.Row="0">
-                                                <Image Source="{Binding Thumbnail}" 
-                                                       Stretch="Uniform" 
-                                                       VerticalAlignment="Center"
-                                                       HorizontalAlignment="Center"/>
-                                                <!-- GPS Badge -->
-                                                <Border Background="#FF4CAF50" 
-                                                        CornerRadius="3" 
-                                                        Padding="5,2"
-                                                        HorizontalAlignment="Right"
-                                                        VerticalAlignment="Top"
-                                                        Margin="5">
-                                                    <Border.Style>
-                                                        <Style TargetType="Border">
-                                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding HasGpsData}" Value="True">
-                                                                    <Setter Property="Visibility" Value="Visible"/>
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </Border.Style>
-                                                    <TextBlock Text="📍 GPS" 
-                                                               Foreground="White" 
-                                                               FontSize="10" 
-                                                               FontWeight="Bold"/>
-                                                </Border>
-                                            </Grid>
-                                            
-                                            <!-- Dateiname -->
-                                            <TextBlock Grid.Row="1" 
-                                                       Text="{Binding FileName}" 
-                                                       FontSize="11" 
-                                                       FontWeight="Bold"
-                                                       TextTrimming="CharacterEllipsis"
-                                                       Margin="0,5,0,2"
-                                                       ToolTip="{Binding FileName}"/>
+                                            <!-- Thumbnail-Bereich mit Hintergrund -->
+                                            <Border Grid.Row="0" 
+                                                    Background="#FFF5F5F5" 
+                                                    BorderBrush="#FFDDDDDD" 
+                                                    BorderThickness="1"
+                                                    CornerRadius="4">
+                                                <Grid>
+                                                    <!-- Eigentliches Thumbnail -->
+                                                    <Image Source="{Binding Thumbnail}" 
+                                                           Stretch="Uniform" 
+                                                           VerticalAlignment="Center"
+                                                           HorizontalAlignment="Center"
+                                                           MaxHeight="140"
+                                                           MaxWidth="170"
+                                                           RenderOptions.BitmapScalingMode="HighQuality"
+                                                           Margin="5"/>
+                                                    
+                                                    <!-- GPS Badge -->
+                                                    <Border Background="#FF4CAF50" 
+                                                            CornerRadius="3" 
+                                                            Padding="5,2"
+                                                            HorizontalAlignment="Right"
+                                                            VerticalAlignment="Top"
+                                                            Margin="5">
+                                                        <Border.Style>
+                                                            <Style TargetType="Border">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding HasGpsData}" Value="True">
+                                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Border.Style>
+                                                        <TextBlock Text="📍 GPS" 
+                                                                   Foreground="White" 
+                                                                   FontSize="10" 
+                                                                   FontWeight="Bold"/>
+                                                    </Border>
+                                                </Grid>
+                                            </Border>
                                             
                                             <!-- GPS Info -->
-                                            <TextBlock Grid.Row="2" 
+                                            <TextBlock Grid.Row="1" 
                                                        Text="{Binding GpsInfo}" 
                                                        FontSize="9" 
                                                        Foreground="#FF666666"
+                                                       TextAlignment="Center"
                                                        TextWrapping="Wrap"
-                                                       Margin="0,0,0,5"/>
+                                                       Margin="0,5,0,5"/>
                                             
                                             <!-- Aktionsbuttons -->
-                                            <Grid Grid.Row="3">
+                                            <Grid Grid.Row="2" Margin="0,0,0,5">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="*"/>

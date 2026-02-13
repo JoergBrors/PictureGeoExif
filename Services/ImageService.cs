@@ -55,7 +55,8 @@ namespace PictureExifclone.Services
                     image.SaveAsJpeg(thumbnailPath, new JpegEncoder { Quality = 85 });
                 }
 
-                return LoadBitmapImage(thumbnailPath);
+                // Thumbnail-Datei wurde erfolgreich erstellt, jetzt laden
+                return LoadBitmapImageFromFile(thumbnailPath);
             }
             catch (Exception ex)
             {
@@ -74,7 +75,32 @@ namespace PictureExifclone.Services
         }
 
         /// <summary>
-        /// Lädt ein BitmapImage aus einer Datei ohne File-Locking
+        /// Lädt ein BitmapImage aus einer Datei - VERBESSERTE VERSION
+        /// </summary>
+        private BitmapImage LoadBitmapImageFromFile(string filePath)
+        {
+            if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
+                throw new FileNotFoundException($"Bilddatei nicht gefunden: {filePath}");
+
+            try
+            {
+                var bitmap = new BitmapImage();
+                bitmap.BeginInit();
+                bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                bitmap.UriSource = new Uri(filePath, UriKind.Absolute);
+                bitmap.EndInit();
+                bitmap.Freeze();
+                
+                return bitmap;
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Fehler beim Laden des Bildes: {ex.Message}", ex);
+            }
+        }
+
+        /// <summary>
+        /// Lädt ein BitmapImage aus einer Datei ohne File-Locking und Cache
         /// </summary>
         public BitmapImage LoadBitmapImage(string filePath)
         {
@@ -83,13 +109,26 @@ namespace PictureExifclone.Services
 
             try
             {
+                // Lese Datei komplett in Speicher
+                byte[] imageData = File.ReadAllBytes(filePath);
+                
+                if (imageData == null || imageData.Length == 0)
+                    throw new InvalidOperationException("Bilddaten sind leer");
+                
                 var bitmap = new BitmapImage();
                 bitmap.BeginInit();
                 bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                bitmap.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
-                bitmap.UriSource = new Uri(filePath, UriKind.Absolute);
-                bitmap.EndInit();
+                bitmap.CreateOptions = BitmapCreateOptions.None;
+                
+                using (var memoryStream = new MemoryStream(imageData))
+                {
+                    memoryStream.Position = 0;
+                    bitmap.StreamSource = memoryStream;
+                    bitmap.EndInit();
+                }
+                
                 bitmap.Freeze();
+                
                 return bitmap;
             }
             catch (Exception ex)
