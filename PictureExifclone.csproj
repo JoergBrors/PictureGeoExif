@@ -12,15 +12,18 @@
     <PackageReference Include="MetadataExtractor" Version="2.9.0" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3719.77" />
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
+    <PackageReference Include="SixLabors.Fonts" Version="1.1.0" />
+    <PackageReference Include="SixLabors.ImageSharp.Drawing" Version="1.0.0" />
+    <PackageReference Include="Ookii.Dialogs.Wpf" Version="5.0.1" />
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Services\" />
     <Folder Include="Views\" />
   </ItemGroup>
 
   <ItemGroup>
     <None Include=".github\workflows\release-on-tag.yml" />
+    <EmbeddedResource Include="Resources\map.html" />
   </ItemGroup>
 
 </Project>
