@@ -9,11 +9,15 @@ jobs:
   build_and_release:
     runs-on: windows-latest
     permissions:
-      contents: write  # nötig für Release erstellen + Assets hochladen
+      contents: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        runtime: [win-x64, win-arm64]
 
     env:
       CONFIGURATION: Release
-      RUNTIME: win-x64
       PROJECT_PATH: PictureExifclone.csproj
 
     steps:
@@ -38,18 +42,17 @@ jobs:
             nuget-${{ runner.os }}-
 
       - name: Restore (RID)
-        run: dotnet restore "${{ env.PROJECT_PATH }}" -r ${{ env.RUNTIME }}
+        run: dotnet restore "${{ env.PROJECT_PATH }}" -r ${{ matrix.runtime }}
 
-      # ✅ FIX: Build muss mit Runtime/RID laufen, sonst fehlt obj\...\win-x64\*.dll für SingleFile bundling
       - name: Build (RID)
-        run: dotnet build "${{ env.PROJECT_PATH }}" -c ${{ env.CONFIGURATION }} -r ${{ env.RUNTIME }} --no-restore
+        run: dotnet build "${{ env.PROJECT_PATH }}" -c ${{ env.CONFIGURATION }} -r ${{ matrix.runtime }} --no-restore
 
       - name: Publish single-file (self-contained)
         shell: pwsh
         run: |
           dotnet publish "${{ env.PROJECT_PATH }}" `
             -c "${{ env.CONFIGURATION }}" `
-            -r "${{ env.RUNTIME }}" `
+            -r "${{ matrix.runtime }}" `
             --no-build `
             /p:PublishSingleFile=true `
             /p:IncludeNativeLibrariesForSelfExtract=true `
@@ -63,7 +66,8 @@ jobs:
         shell: pwsh
         run: |
           $tag = "${{ github.ref_name }}"
-          $zip = "PictureExifclone-$tag-${{ env.RUNTIME }}.zip"
+          $runtime = "${{ matrix.runtime }}"
+          $zip = "PictureExifclone-$tag-$runtime.zip"
           if (Test-Path $zip) { Remove-Item $zip -Force }
           Compress-Archive -Path "out\*" -DestinationPath $zip
           "ZIP_NAME=$zip" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
@@ -78,13 +82,10 @@ jobs:
 
             **Build-Quelle:** Branch `main` (nicht der Tag-Commit)
             **Commit (main):** `${{ github.sha }}`
-            **Runtime:** `${{ env.RUNTIME }}`
+            **Runtime:** `${{ matrix.runtime }}`
             **Single-File:** SelfContained
           draft: false
           prerelease: false
-
-          # verhindert 422/already_exists durch Update statt Neu-Erstellung
           allowUpdates: true
-
           artifacts: ${{ env.ZIP_NAME }}
           replacesArtifacts: true
