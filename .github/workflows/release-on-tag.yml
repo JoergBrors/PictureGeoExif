@@ -1,27 +1,95 @@
-name: Create Release on Tag
+name: Build & Release (from main) on Tag
 
 on:
   push:
     tags:
-      - '*' # Auslösen bei jedem Tag-Push
+      - '*'
 
 jobs:
-  create_release:
-    runs-on: ubuntu-latest
+  build_and_release:
+    runs-on: windows-latest
     permissions:
-      contents: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      contents: write   # nötig für Release erstellen + Assets hochladen
 
-      - name: Create GitHub Release
+    env:
+      CONFIGURATION: Release
+      RUNTIME: win-x64
+      PROJECT_PATH: PictureExifclone.csproj
+
+    steps:
+      # Wir bauen immer aus main (nicht aus dem Tag-Stand),
+      # der Tag bestimmt nur die Version/Release-Bezeichnung.
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', '**/Directory.Packages.props', '**/packages.lock.json', '**/NuGet.config') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
+      - name: Restore
+        run: dotnet restore "${{ env.PROJECT_PATH }}" --runtime ${{ env.RUNTIME }}
+
+      - name: Build
+        run: dotnet build "${{ env.PROJECT_PATH }}" -c ${{ env.CONFIGURATION }} --no-restore
+
+      - name: Publish single-file (self-contained)
+        shell: pwsh
+        run: |
+          dotnet publish "${{ env.PROJECT_PATH }}" `
+            -c "${{ env.CONFIGURATION }}" `
+            -r "${{ env.RUNTIME }}" `
+            --no-build `
+            /p:PublishSingleFile=true `
+            /p:IncludeNativeLibrariesForSelfExtract=true `
+            /p:SelfContained=true `
+            /p:PublishTrimmed=false `
+            /p:DebugType=None `
+            /p:DebugSymbols=false `
+            -o "out"
+
+      # ZIP ist besser als einzelne Datei hochladen (sauberer Download, ggf. weitere Files)
+      - name: Create zip
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $zip = "PictureExifclone-$tag-${{ env.RUNTIME }}.zip"
+          if (Test-Path $zip) { Remove-Item $zip -Force }
+          Compress-Archive -Path "out\*" -DestinationPath $zip
+          "ZIP_NAME=$zip" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Create/Update GitHub Release and upload asset
         uses: ncipollo/release-action@v1
         with:
           tag: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
           body: |
             Automatisch erstelltes Release für Tag `${{ github.ref_name }}`.
-            
-            Commit-Range: `${{ github.event.before }}..${{ github.sha }}`
+
+            **Build-Quelle:** Branch `main` (nicht der Tag-Commit)
+            **Commit (main):** `${{ github.sha }}`
+            **Runtime:** `${{ env.RUNTIME }}`
+            **Single-File:** SelfContained
+
           draft: false
           prerelease: false
+
+          # Wichtig gegen 422 already_exists:
+          allowUpdates: true
+          skipIfReleaseExists: false
+
+          # Asset hochladen (ZIP)
+          artifacts: ${{ env.ZIP_NAME }}
+          replacesArtifacts: true
