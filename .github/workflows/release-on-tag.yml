@@ -53,7 +53,6 @@ jobs:
           dotnet publish "${{ env.PROJECT_PATH }}" `
             -c "${{ env.CONFIGURATION }}" `
             -r "${{ matrix.runtime }}" `
-            --no-build `
             /p:PublishSingleFile=true `
             /p:IncludeNativeLibrariesForSelfExtract=true `
             /p:SelfContained=true `
