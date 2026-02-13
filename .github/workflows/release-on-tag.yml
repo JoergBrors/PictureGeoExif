@@ -1,0 +1,27 @@
+name: Create Release on Tag
+
+on:
+  push:
+    tags:
+      - '*' # Auslösen bei jedem Tag-Push
+
+jobs:
+  create_release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          body: |
+            Automatisch erstelltes Release für Tag `${{ github.ref_name }}`.
+            
+            Commit-Range: `${{ github.event.before }}..${{ github.sha }}`
+          draft: false
+          prerelease: false

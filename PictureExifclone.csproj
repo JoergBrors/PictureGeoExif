@@ -19,4 +19,8 @@
     <Folder Include="Views\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include=".github\workflows\release-on-tag.yml" />
+  </ItemGroup>
+
 </Project>
