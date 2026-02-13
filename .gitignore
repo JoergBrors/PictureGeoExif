@@ -1,0 +1,93 @@
+# ------------------------------------------------------------
+# Visual Studio / .NET (WPF, .NET 8, VS 2022)
+# ------------------------------------------------------------
+
+# User-specific files
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Visual Studio workspace / cache
+.vs/
+.vscode/
+.idea/
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+
+# Build results
+**/bin/
+**/obj/
+**/TestResults/
+**/Debug/
+**/Release/
+**/x64/
+**/x86/
+**/AnyCPU/
+**/ARM/
+**/ARM64/
+
+# MSBuild / publish artifacts
+**/artifacts/
+**/publish/
+**/*.publishproj
+**/*.pubxml
+**/*.pubxml.user
+
+# ClickOnce / deployment leftovers
+**/AppPackages/
+**/BundleArtifacts/
+**/Packages/
+**/ClientBin/
+
+# NuGet
+# (Empfehlung: packages/ ignorieren nur, wenn du NICHT packages.config nutzt.
+# Bei SDK-style (.NET 8) ist das i.d.R. safe.)
+packages/
+*.nupkg
+*.snupkg
+**/project.assets.json
+**/packages.lock.json
+.nuget/NuGet.Config.user
+.nuget/NuGet.targets
+.nuget/NuGet.exe
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Rider / JetBrains
+.idea/
+*.sln.iml
+
+# ------------------------------------------------------------
+# WPF / Windows-specific common outputs
+# ------------------------------------------------------------
+
+# Generated files
+GeneratedFiles/
+*.g.cs
+*.g.i.cs
+*.tmp
+*.cache
+
+# ------------------------------------------------------------
+# Optional: Secrets / local config (wenn vorhanden)
+# ------------------------------------------------------------
+# appsettings.Development.json
+# secrets.json
+# *.pfx
+# *.snk
+
+# ------------------------------------------------------------
+# Optional: SQLite / local DB files (falls du lokal speicherst)
+# ------------------------------------------------------------
+# *.db
+# *.db-shm
+# *.db-wal

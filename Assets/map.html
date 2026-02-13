@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>OpenStreetMap</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+        #map {
+            height: 100vh;
+            width: 100%;
+        }
+        .info-box {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            z-index: 1000;
+            font-family: Arial, sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div class="info-box">
+        <div id="coords">Klicken Sie auf die Karte</div>
+    </div>
+
+    <script>
+        var map = L.map('map').setView([51.1657, 10.4515], 6);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+        }).addTo(map);
+
+        var marker = null;
+
+        function setMarker(lat, lng) {
+            if (marker) {
+                map.removeLayer(marker);
+            }
+            marker = L.marker([lat, lng]).addTo(map);
+            map.setView([lat, lng], 13);
+            updateCoords(lat, lng);
+        }
+
+        function updateCoords(lat, lng) {
+            document.getElementById('coords').innerHTML = 
+                'Lat: ' + lat.toFixed(6) + '<br>Lng: ' + lng.toFixed(6);
+        }
+
+        map.on('click', function(e) {
+            setMarker(e.latlng.lat, e.latlng.lng);
+            
+            if (window.chrome && window.chrome.webview) {
+                window.chrome.webview.postMessage({
+                    latitude: e.latlng.lat,
+                    longitude: e.latlng.lng
+                });
+            }
+        });
+
+        function setLocation(lat, lng) {
+            setMarker(lat, lng);
+        }
+
+        function centerMap(lat, lng, zoom) {
+            map.setView([lat, lng], zoom || 13);
+        }
+    </script>
+</body>
+</html>
