@@ -1,4 +1,4 @@
-name: Build & Release (from main) on Tag
+﻿name: Build & Release (from main) on Tag
 
 on:
   push:
@@ -9,7 +9,7 @@ jobs:
   build_and_release:
     runs-on: windows-latest
     permissions:
-      contents: write   # n�tig f�r Release erstellen + Assets hochladen
+      contents: write  # nötig für Release erstellen + Assets hochladen
 
     env:
       CONFIGURATION: Release
@@ -17,8 +17,6 @@ jobs:
       PROJECT_PATH: PictureExifclone.csproj
 
     steps:
-      # Wir bauen immer aus main (nicht aus dem Tag-Stand),
-      # der Tag bestimmt nur die Version/Release-Bezeichnung.
       - name: Checkout main
         uses: actions/checkout@v4
         with:
@@ -39,11 +37,12 @@ jobs:
           restore-keys: |
             nuget-${{ runner.os }}-
 
-      - name: Restore
-        run: dotnet restore "${{ env.PROJECT_PATH }}" --runtime ${{ env.RUNTIME }}
+      - name: Restore (RID)
+        run: dotnet restore "${{ env.PROJECT_PATH }}" -r ${{ env.RUNTIME }}
 
-      - name: Build
-        run: dotnet build "${{ env.PROJECT_PATH }}" -c ${{ env.CONFIGURATION }} --no-restore
+      # ✅ FIX: Build muss mit Runtime/RID laufen, sonst fehlt obj\...\win-x64\*.dll für SingleFile bundling
+      - name: Build (RID)
+        run: dotnet build "${{ env.PROJECT_PATH }}" -c ${{ env.CONFIGURATION }} -r ${{ env.RUNTIME }} --no-restore
 
       - name: Publish single-file (self-contained)
         shell: pwsh
@@ -60,7 +59,6 @@ jobs:
             /p:DebugSymbols=false `
             -o "out"
 
-      # ZIP ist besser als einzelne Datei hochladen (sauberer Download, ggf. weitere Files)
       - name: Create zip
         shell: pwsh
         run: |
@@ -76,20 +74,17 @@ jobs:
           tag: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
           body: |
-            Automatisch erstelltes Release f�r Tag `${{ github.ref_name }}`.
+            Automatisch erstelltes Release für Tag `${{ github.ref_name }}`.
 
             **Build-Quelle:** Branch `main` (nicht der Tag-Commit)
             **Commit (main):** `${{ github.sha }}`
             **Runtime:** `${{ env.RUNTIME }}`
             **Single-File:** SelfContained
-
           draft: false
           prerelease: false
 
-          # Wichtig gegen 422 already_exists:
+          # verhindert 422/already_exists durch Update statt Neu-Erstellung
           allowUpdates: true
-          skipIfReleaseExists: false
 
-          # Asset hochladen (ZIP)
           artifacts: ${{ env.ZIP_NAME }}
           replacesArtifacts: true
