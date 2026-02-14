@@ -25,6 +25,11 @@
   <ItemGroup>
     <None Include=".github\workflows\release-on-tag.yml" />
     <EmbeddedResource Include="Resources\map.html" />
+    <!-- Kopiere Lizenzdateien bei Build ins Output-Verzeichnis -->
+    <None Include="LICENSE" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="THIRD-PARTY-LICENSES.md" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="licenses\**\*" CopyToOutputDirectory="PreserveNewest" LinkBase="licenses\" />
   </ItemGroup>
 
 </Project>
+

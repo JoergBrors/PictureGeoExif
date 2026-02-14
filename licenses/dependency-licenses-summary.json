@@ -1,0 +1,86 @@
+﻿[
+    {
+        "Id":  "MetadataExtractor",
+        "Version":  "2.9.0",
+        "NuGetApiUrl":  "https://api.nuget.org/v3/registration5-gz-semver2/metadataextractor/index.json",
+        "NuGetPackagePage":  "https://www.nuget.org/packages/MetadataExtractor/2.9.0",
+        "NuGetLicensePage":  "https://www.nuget.org/packages/MetadataExtractor/2.9.0/license",
+        "LicenseExpression":  "Apache-2.0",
+        "LicenseUrl":  "https://www.nuget.org/packages/MetadataExtractor/2.9.0/license",
+        "LocalLicensePage":  "licenses/MetadataExtractor/MetadataExtractor-2.9.0-license-page.html",
+        "LocalLicenseFile":  "licenses/MetadataExtractor/MetadataExtractor-2.9.0-license.txt",
+        "Note":  "Hinweis: MetadataExtractor kann XmpCore als Ergänzung benötigen."
+    },
+    {
+        "Id":  "Microsoft.Web.WebView2",
+        "Version":  "1.0.3719.77",
+        "NuGetApiUrl":  "https://api.nuget.org/v3/registration5-gz-semver2/microsoft.web.webview2/index.json",
+        "NuGetPackagePage":  "https://www.nuget.org/packages/Microsoft.Web.WebView2/1.0.3719.77",
+        "NuGetLicensePage":  "https://www.nuget.org/packages/Microsoft.Web.WebView2/1.0.3719.77/license",
+        "LicenseExpression":  null,
+        "LicenseUrl":  null,
+        "LocalLicensePage":  "licenses/Microsoft.Web.WebView2/Microsoft.Web.WebView2-1.0.3719.77-license-page.html",
+        "LocalLicenseFile":  "licenses/Microsoft.Web.WebView2/Microsoft.Web.WebView2-1.0.3719.77-license.txt",
+        "Note":  null
+    },
+    {
+        "Id":  "SixLabors.ImageSharp",
+        "Version":  "3.1.12",
+        "NuGetApiUrl":  "https://api.nuget.org/v3/registration5-gz-semver2/sixlabors.imagesharp/index.json",
+        "NuGetPackagePage":  "https://www.nuget.org/packages/SixLabors.ImageSharp/3.1.12",
+        "NuGetLicensePage":  "https://www.nuget.org/packages/SixLabors.ImageSharp/3.1.12/license",
+        "LicenseExpression":  "",
+        "LicenseUrl":  "https://www.nuget.org/packages/SixLabors.ImageSharp/3.1.12/license",
+        "LocalLicensePage":  "licenses/SixLabors.ImageSharp/SixLabors.ImageSharp-3.1.12-license-page.html",
+        "LocalLicenseFile":  "licenses/SixLabors.ImageSharp/SixLabors.ImageSharp-3.1.12-license.txt",
+        "Note":  null
+    },
+    {
+        "Id":  "SixLabors.Fonts",
+        "Version":  "2.1.3",
+        "NuGetApiUrl":  "https://api.nuget.org/v3/registration5-gz-semver2/sixlabors.fonts/index.json",
+        "NuGetPackagePage":  "https://www.nuget.org/packages/SixLabors.Fonts/2.1.3",
+        "NuGetLicensePage":  "https://www.nuget.org/packages/SixLabors.Fonts/2.1.3/license",
+        "LicenseExpression":  "",
+        "LicenseUrl":  "https://www.nuget.org/packages/SixLabors.Fonts/2.1.3/license",
+        "LocalLicensePage":  "licenses/SixLabors.Fonts/SixLabors.Fonts-2.1.3-license-page.html",
+        "LocalLicenseFile":  "licenses/SixLabors.Fonts/SixLabors.Fonts-2.1.3-license.txt",
+        "Note":  null
+    },
+    {
+        "Id":  "SixLabors.ImageSharp.Drawing",
+        "Version":  "2.1.7",
+        "NuGetApiUrl":  "https://api.nuget.org/v3/registration5-gz-semver2/sixlabors.imagesharp.drawing/index.json",
+        "NuGetPackagePage":  "https://www.nuget.org/packages/SixLabors.ImageSharp.Drawing/2.1.7",
+        "NuGetLicensePage":  "https://www.nuget.org/packages/SixLabors.ImageSharp.Drawing/2.1.7/license",
+        "LicenseExpression":  "",
+        "LicenseUrl":  "https://www.nuget.org/packages/SixLabors.ImageSharp.Drawing/2.1.7/license",
+        "LocalLicensePage":  "licenses/SixLabors.ImageSharp.Drawing/SixLabors.ImageSharp.Drawing-2.1.7-license-page.html",
+        "LocalLicenseFile":  "licenses/SixLabors.ImageSharp.Drawing/SixLabors.ImageSharp.Drawing-2.1.7-license.txt",
+        "Note":  null
+    },
+    {
+        "Id":  "Ookii.Dialogs.Wpf",
+        "Version":  "5.0.1",
+        "NuGetApiUrl":  "https://api.nuget.org/v3/registration5-gz-semver2/ookii.dialogs.wpf/index.json",
+        "NuGetPackagePage":  "https://www.nuget.org/packages/Ookii.Dialogs.Wpf/5.0.1",
+        "NuGetLicensePage":  "https://www.nuget.org/packages/Ookii.Dialogs.Wpf/5.0.1/license",
+        "LicenseExpression":  "BSD-3-Clause",
+        "LicenseUrl":  "https://www.nuget.org/packages/Ookii.Dialogs.Wpf/5.0.1/license",
+        "LocalLicensePage":  "licenses/Ookii.Dialogs.Wpf/Ookii.Dialogs.Wpf-5.0.1-license-page.html",
+        "LocalLicenseFile":  "licenses/Ookii.Dialogs.Wpf/Ookii.Dialogs.Wpf-5.0.1-license.txt",
+        "Note":  null
+    },
+    {
+        "Id":  "XmpCore",
+        "Version":  "6.1.10.1",
+        "NuGetApiUrl":  "https://api.nuget.org/v3/registration5-gz-semver2/xmpcore/index.json",
+        "NuGetPackagePage":  "https://www.nuget.org/packages/XmpCore/6.1.10.1",
+        "NuGetLicensePage":  "https://www.nuget.org/packages/XmpCore/6.1.10.1/license",
+        "LicenseExpression":  "",
+        "LicenseUrl":  "https://www.adobe.com/devnet/xmp/library/eula-xmp-library-java.html",
+        "LocalLicensePage":  "licenses/XmpCore/XmpCore-6.1.10.1-license-page.html",
+        "LocalLicenseFile":  "licenses/XmpCore/XmpCore-6.1.10.1-license.txt",
+        "Note":  "Hinweis: licenseUrl nicht direkt als Text speicherbar."
+    }
+]

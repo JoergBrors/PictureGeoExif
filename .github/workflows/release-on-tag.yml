@@ -61,6 +61,20 @@ jobs:
             /p:DebugSymbols=false `
             -o "out"
 
+      - name: Copy license files to output
+        shell: pwsh
+        run: |
+          # Kopiere LICENSE und THIRD-PARTY-LICENSES.md
+          Copy-Item -Path "LICENSE" -Destination "out\LICENSE" -Force
+          Copy-Item -Path "THIRD-PARTY-LICENSES.md" -Destination "out\THIRD-PARTY-LICENSES.md" -Force
+          
+          # Kopiere licenses Ordner rekursiv
+          if (Test-Path "licenses") {
+            Copy-Item -Path "licenses" -Destination "out\licenses" -Recurse -Force
+          }
+          
+          Write-Host "License files copied to output folder"
+
       - name: Create zip
         shell: pwsh
         run: |
@@ -83,6 +97,11 @@ jobs:
             **Commit (main):** `${{ github.sha }}`
             **Runtime:** `${{ matrix.runtime }}`
             **Single-File:** SelfContained
+            
+            **Enthaltene Lizenzen:**
+            - LICENSE (MIT)
+            - THIRD-PARTY-LICENSES.md
+            - licenses/ Ordner mit allen Drittanbieter-Lizenzen
           draft: false
           prerelease: false
           allowUpdates: true

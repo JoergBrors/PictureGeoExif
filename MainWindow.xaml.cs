@@ -17,6 +17,7 @@ using SixLabors.ImageSharp.Processing;
 using SixLabors.ImageSharp.Drawing.Processing;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.Fonts;
+using System.IO.Compression;
 
 namespace PictureExifclone
 {
@@ -138,8 +139,8 @@ namespace PictureExifclone
             
             // SVG Icons als keine ???????
             html.AppendLine("        var selectedIconSvg = 'PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSI0MiIgdmlld0JveD0iMCAwIDMyIDQyIj48cGF0aCBmaWxsPSIjMjE5NkYzIiBzdHJva2U9IiNGRkYiIHN0cm9rZS13aWR0aD0iMiIgZD0iTTE2IDBDOS40IDAgNCA1LjQgNCAxMmMwIDggMTIgMzAgMTIgMzBzMTItMjIgMTItMzBjMC02LjYtNS40LTEyLTEyLTEyeiIvPjxjaXJjbGUgY3g9IjE2IiBjeT0iMTIiIHI9IjYiIGZpbGw9IiNGRkYiLz48L3N2Zz4=';");
-            html.AppendLine("        var normalIconSvg = 'PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNSIgaGVpZ2h0PSIzNSIgdmlld0JveD0iMCAwIDI1IDM1Ij48cGF0aCBmaWxsPSIjNENBRjUwIiBzdHJva2U9IiNGRkYiIHN0cm9rZS13aWR0aD0iMiIgZD0iTTEyLjUgMEM3LjI1IDAgMyA0LjI1IDMgOS41YzAgNi4yNSA5LjUgMjMuNSA5LjUgMjMuNVMyMiAxNS43NSAyMiA5LjVDMjIgNC4yNSAxNy43NSAwIDEyLjUgMHoiLz48Y2lyY2xlIGN4PSIxMi41IiBjeT0iOS41IiByPSI0IiBmaWxsPSIjRkZGIi8+PC9zdmc+';");
-            html.AppendLine("        var clickIconSvg = 'PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNSIgaGVpZ2h0PSIzNSIgdmlld0JveD0iMCAwIDI1IDM1Ij48cGF0aCBmaWxsPSIjRkY1NzIyIiBzdHJva2U9IiNGRkYiIHN0cm9rZS13aWR0aD0iMiIgZD0iTTEyLjUgMEM3LjI1IDAgMyA0LjI1IDMgOS41YzAgNi4yNSA5LjUgMjMuNSA5LjUgMjMuNVMyMiAxNS43NSAyMiA5LjVDMjIgNC4yNSAxNy43NSAwIDEyLjUgMHoiLz48Y2lyY2xlIGN4PSIxMi41IiBjeT0iOS41IiByPSI0IiBmaWxsPSIjRkZGIi8+PC9zdmc+';");
+            html.AppendLine("        var normalIconSvg = 'PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNSIgaGVpZ2h0PSMzNSIgdmlld0JveD0iMCAwIDI1IDM1Ij48cGF0aCBmaWxsPSIjNENBRjUwIiBzdHJva2U9IiNGRkYiIHN0cm9rZS13aWR0aD0iMiIgZD0iTTEyLjUgMEM3LjI1IDAgMyA0LjI1IDMgOS41YzAgNi4yNSA5LjUgMjMuNSA5LjUgMjMuNVMyMiAxNS43NSAyMiA5LjVDMjIgNC4yNSAxNy43NSAwIDEyLjUgMHoiLz48Y2lyY2xlIGN4PSIxMi41IiBjeT0iOS41IiByPSI0IiBmaWxsPSIjRkZGIi8+PC9zdmc+';");
+            html.AppendLine("        var clickIconSvg = 'PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNSIgaGVpZ2h0PSMzNSIgdmlld0JveD0iMCAwIDI1IDM1Ij48cGF0aCBmaWxsPSIjRkY1NzIyIiBzdHJva2U9IiNGRkYiIHN0cm9rZS13aWR0aD0iMiIgZD0iTTEyLjUgMEM3LjI1IDAgMyA0LjI1IDMgOS41YzAgNi4yNSA5LjUgMjMuNSA5LjUgMjMuNVMyMiAxNS43NSAyMiA5LjVDMjIgNC4yNSAxNy43NSAwIDEyLjUgMHoiLz48Y2lyY2xlIGN4PSIxMi41IiBjeT0iOS41IiByPSI0IiBmaWxsPSIjRkZGIi8+PC9zdmc+';");
             html.AppendLine("");
             html.AppendLine("        var selectedIcon = L.icon({");
             html.AppendLine("            iconUrl: 'data:image/svg+xml;base64,' + selectedIconSvg,");
@@ -703,6 +704,139 @@ namespace PictureExifclone
 
             string script = $"updateGrid({enabled.ToString().ToLower()}, {size.ToString(System.Globalization.CultureInfo.InvariantCulture)});";
             MapWebView.CoreWebView2.ExecuteScriptAsync(script);
+        }
+
+        private void ShowLicensesButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var licenseWindow = new LicenseViewer
+                {
+                    Owner = this
+                };
+                licenseWindow.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Fehler beim Oeffnen des Lizenz-Fensters: {ex.Message}", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void CreateReleaseZipButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                string outputFolder = Path.Combine(baseDir, "release");
+                
+                // Lösche alten Release-Ordner falls vorhanden
+                if (System.IO.Directory.Exists(outputFolder))
+                {
+                    System.IO.Directory.Delete(outputFolder, true);
+                }
+                System.IO.Directory.CreateDirectory(outputFolder);
+
+                // Suche die EXE im aktuellen Verzeichnis
+                string exeName = "PictureExifclone.exe";
+                string exePath = Path.Combine(baseDir, exeName);
+                
+                if (!File.Exists(exePath))
+                {
+                    // Versuche im bin\Release oder bin\Debug zu finden
+                    var searchDirs = new[] {
+                        Path.Combine(baseDir, "bin", "Release", "net8.0-windows"),
+                        Path.Combine(baseDir, "bin", "Debug", "net8.0-windows")
+                    };
+                    
+                    foreach (var dir in searchDirs)
+                    {
+                        var candidate = Path.Combine(dir, exeName);
+                        if (File.Exists(candidate))
+                        {
+                            exePath = candidate;
+                            break;
+                        }
+                    }
+                }
+
+                if (File.Exists(exePath))
+                {
+                    File.Copy(exePath, Path.Combine(outputFolder, exeName), true);
+                }
+                else
+                {
+                    MessageBox.Show($"EXE nicht gefunden. Bitte zuerst das Projekt kompilieren.\n\nGesucht in: {baseDir}", 
+                        "Warnung", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+
+                // Kopiere LICENSE und THIRD-PARTY-LICENSES.md
+                // Gehe ein Verzeichnis hoch, falls wir im bin-Ordner sind
+                string repoRoot = baseDir;
+                if (baseDir.Contains("\\bin\\"))
+                {
+                    // Navigiere zum Projekt-Root
+                    var dirInfo = new DirectoryInfo(baseDir);
+                    while (dirInfo != null && dirInfo.Name != "bin")
+                    {
+                        dirInfo = dirInfo.Parent;
+                    }
+                    if (dirInfo?.Parent != null)
+                    {
+                        repoRoot = dirInfo.Parent.FullName;
+                    }
+                }
+
+                foreach (var fileName in new[] { "LICENSE", "THIRD-PARTY-LICENSES.md" })
+                {
+                    string srcPath = Path.Combine(repoRoot, fileName);
+                    if (File.Exists(srcPath))
+                    {
+                        File.Copy(srcPath, Path.Combine(outputFolder, fileName), true);
+                    }
+                }
+
+                // Kopiere licenses Ordner
+                string licensesSrc = Path.Combine(repoRoot, "licenses");
+                if (System.IO.Directory.Exists(licensesSrc))
+                {
+                    string licensesDest = Path.Combine(outputFolder, "licenses");
+                    CopyDirectory(licensesSrc, licensesDest);
+                }
+
+                // Erstelle ZIP
+                string zipPath = Path.Combine(baseDir, "PictureExifclone-release.zip");
+                if (File.Exists(zipPath))
+                {
+                    File.Delete(zipPath);
+                }
+                ZipFile.CreateFromDirectory(outputFolder, zipPath);
+
+                // Zeige Inhalt des Release-Ordners
+                var files = System.IO.Directory.GetFiles(outputFolder, "*.*", System.IO.SearchOption.AllDirectories)
+                    .Select(f => f.Replace(outputFolder, "").TrimStart('\\'))
+                    .ToList();
+
+                string fileList = string.Join("\n", files);
+                MessageBox.Show($"Release ZIP erstellt: {zipPath}\n\nEnthaltene Dateien:\n{fileList}", 
+                    "Fertig", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Fehler beim Erstellen des Release-Zips: {ex.Message}\n\nDetails: {ex.StackTrace}", 
+                    "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void CopyDirectory(string sourceDir, string destDir)
+        {
+            foreach (var dirPath in System.IO.Directory.GetDirectories(sourceDir, "*", System.IO.SearchOption.AllDirectories))
+            {
+                System.IO.Directory.CreateDirectory(dirPath.Replace(sourceDir, destDir));
+            }
+            foreach (var newPath in System.IO.Directory.GetFiles(sourceDir, "*.*", System.IO.SearchOption.AllDirectories))
+            {
+                File.Copy(newPath, newPath.Replace(sourceDir, destDir), true);
+            }
         }
     }
 }

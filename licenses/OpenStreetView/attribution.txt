@@ -1,0 +1,126 @@
+= OpenStreetMap Attribution Guideline =
+[[Board/Minutes/2021-06#Vote|Adopted]] by the OpenStreetMap Foundation board on 2021-06-25.
+
+== Introduction ==
+OpenStreetMap (OSM) data is distributed under the Open Database License (ODbL). If you want to use OpenStreetMap data in something you create and distribute, you must attribute OpenStreetMap.
+
+While attribution is required, the way it must be done depends on the type of map, database, or other creation involved, and how it is presented.
+
+Note that attribution is only necessary when a Produced Work is used Publicly (as defined by the ODbL). This guideline does not concern internal uses.
+
+The base requirement in ODbL is attribution that is “…reasonably calculated to make any Person that uses, views, accesses, interacts with, or is otherwise exposed to the Produced Work aware that Content was obtained from [OpenStreetMap] …”.
+
+These guidelines are not a substitute for the legal text itself. If the two texts disagree, the legal text takes precedence.
+
+The guidelines may not be the only, best or absolute minimum attribution necessary under the licence and under applicable law. They are intended to provide a technically feasible safe harbour that OSMF believes satisfies the legal requirements under the ODbL and the OpenStreetMap contributor terms, but they are also an expression of best practices and values that the OSM community socially and ethically expects data reusers to follow.
+
+As the guidelines seek to support the OSMF’s continuing mission, compliance today does not mean that we will not propose or ask for different attribution guidelines in the future if it promotes our shared goals.
+
+You may, of course, provide even better and more prominent attribution.
+
+== Why attribution is important ==
+Attribution encourages others to use OSM data by making obvious where it is coming from and under which conditions it can be used.
+
+It also helps recruit contributors and encourages them to contribute more, boosting a virtuous circle that maximises the quality of the map for everyone.
+
+Finally, it is not only a legal obligation under the ODbL but also a moral duty of data reusers to give credit where credit is due.
+
+== Requirements to fit within OSMF’s safe harbour ==
+
+* Attribution must be presented to anyone who uses, views, accesses, interacts with, or is otherwise exposed to the map or produced work. The attribution format should not require individuals to interact with the map or produced work to see the attribution.
+* Attribution must be placed in the vicinity of the produced work or in a location where customarily attribution would be expected by the users of the produced work.
+* Attribution must be legible and understandable.
+* Other attribution, logos, or text must not create any false or misleading impression that OSM data is not from OSM. The text may appear at the same time as, or next to, other attributions.
+* There needs to be a way to access more information, including origin and licence of the data, if that information is not directly in the attribution text (for example by making the text a clickable link).
+
+== Attribution text ==
+Attribution must be to “OpenStreetMap”.
+
+Attribution must also make it clear that the data is available under the Open Database License. This may be done by making the text “OpenStreetMap” a link to openstreetmap.org/copyright, which has information about OpenStreetMap’s data sources (which OpenStreetMap needs to credit) as well as the ODbL.
+
+The text must be easily readable and understandable, taking into consideration the font, size, colour, contrast, positioning and amount of time that it is visible. We recommend you follow accessibility guidelines such as WCAG, and any other locally relevant regulations.
+
+OSM does not wish to claim credit for data or other material that did not come from it, so feel free to qualify the credit to explain what OSM content you are using. For example, if you have rendered OSM data to your own design, you may wish to use “Map data from OpenStreetMap.”
+
+The historical forms of attribution “© OpenStreetMap contributors” or “© OpenStreetMap” are acceptable.
+
+== Safe harbour requirements for specific scenarios ==
+This is not a comprehensive list as OSMF is not able to detail safe harbours for all scenarios. We will consider additional use cases and guidance based on the community’s needs and interests.
+
+=== Databases ===
+You must include attribution to OpenStreetMap and either the text of the ODbL or a link to it as part of the database, derivative database, or database as part of a collective database.
+
+You must include the notices in a location (such as a relevant directory) where users would be likely to look for it, such as a readme file, or within the data or metadata.
+
+=== Interactive maps ===
+For a browsable map (e.g., embedded in a web page or application), the credit should typically appear in a corner of the map.
+
+[[File:Website-attribution-example.png | website attribution example | 800px]]
+
+While the lower right corner is traditional, any corner of the map is acceptable. Alternatively, the attribution may be placed adjacent to the map or on a splash screen or pop-up shown when a user starts the app, device, website, etc.
+
+You may use a mechanism to fade/collapse the attribution under certain conditions:
+
+* immediately with a dismiss interaction, for example clicking an ‘x’ in the corner of a dialog
+* automatically on map interaction such as panning, clicking, or zooming
+* automatically after five seconds. This also applies to splash screens or pop-ups.
+
+If the attribution has been collapsed, the user must still be able to find the licence information if they look for it, for example from an ‘(i)’ button in the corner of the map or an ‘About’ option in a menu.
+
+If a splash screen or other method of attribution cannot link to the licence information, the link must be provided in an easily locatable part of the web page, software, or application (e.g. in the menu under “Data licences”).
+
+If attribution is presented to the user upon application startup, it does not need to be presented to the user every time the user looks at or interacts with the application. (For clarity, when an application returns to the foreground from the background, startup attribution does not need to be presented again.)
+
+=== Static images ===
+Static images must be generally attributed the same way as interactive maps. However, if multiple static images appear on the same document, one instance of attribution is sufficient. (For images where hyperlinking is not possible, see the “Books, magazines and printed maps” section.)
+
+In accordance with the Substantial Guideline, static images of fewer than 100 features do not require attribution. In addition, static images of areas less than 10,000 m2 do not require attribution. Small thumbnails/icons do not require attribution.
+
+=== Geocoding (search) ===
+
+* Geocoders that use OpenStreetMap data must credit OpenStreetMap
+* Applications that incorporate such a geocoder must credit OpenStreetMap
+* A group of geocoding results need not maintain attribution attached to the results, as long as it does not form a Derivative Database
+
+See the Geocoding - Guideline for details.
+
+=== Routing engines ===
+We have adopted a similar safe harbour for routing engines, though detailed guidelines do not exist.
+
+* Routing engines that use OpenStreetMap data must credit OpenStreetMap
+* Applications that incorporate such a routing engine must credit OpenStreetMap
+* Routing instructions generated by such a routing engine need not maintain attribution attached to the instructions, as long as they do not form a Derivative Database
+
+=== Machine learning models ===
+This section is based on the most common scenario discussed with the Licensing Working Group:
+
+A user extracts a portion of the OSM database, such as building footprints. They fill in the building polygons to create a training set for use with satellite imagery for training. A model is trained to predict what portions of imagery are buildings. The model is then used on fresh imagery to make predictions as to where buildings might exist.
+
+Training datasets that are substantial extractions from OpenStreetMap data are considered Derivative Databases and need to be made available on ODbL terms if publicly used.
+
+Models that have been trained with such training sets must be attributed in documentation where a person using the model can expect such information, such as a README for the model’s codebase, or on a webpage where the model can be downloaded.
+
+Predictions made using such a model are not implicated by ODbL. However, note that if a Produced Work is used to extract, copy, or recreate substantial parts of the OpenStreetMap data, it is considered to be a Derivative Database (see the Produced Work - Guideline). This conclusion is reached because sophisticated machine learning models can be “overtrained” to the extent that they can recreate the training set.
+
+Additional guidance concerning more diverse use cases may be provided in a future version of the guideline.
+
+=== Books, magazines, and printed maps ===
+For a printed map and similar media (that is ebooks, PDFs and so on), the credit must appear beside the map if that is where other such credits appear, or in a footnote/endnote if that is where other credits appear, or in the “acknowledgements” section of the publication (often at the start of a book or magazine) if that is where other credits appear. The URL to openstreetmap.org/copyright must be printed out.
+
+=== Artwork, household goods, and clothing ===
+Physical merchandise with an aesthetic component using OpenStreetMap data must provide attribution on any packaging, at the point of sale, and, to the extent possible, somewhere on the item itself. For example, merchandise may provide attribution text in the vicinity of the image, or on the item’s label or tag. The text must be readable and include the URL openstreetmap.org/copyright printed out.
+
+=== TV, film, or video productions ===
+For fictional productions or where the map is not the focus of the production, attribution may be given on the map, in end credits, or, if the video is distributed via a digital format that includes a description, within the description. When attributing via the end credits or the description, the URL to openstreetmap.org/copyright must be included.
+
+For incidental footage of a third party map that uses OSM as a source, you must not digitally alter or erase the existing attribution on that map, but you do not need to do anything further (for example, if you film a person typing on their laptop and a map is visible on their laptop screen).
+
+For productions where an OpenStreetMap map is a major component of what is shown to users, the attribution should typically appear in a corner of the map, in addition to attribution in the end credits or description. As long as the credit is on screen long enough to be read, it does not have to remain in view during panning or zooming.
+
+=== Computer games and simulations ===
+For video or computer games, attribution can be provided either by a splash screen on application startup, in the game view, during gameplay, on the credits page, in the menu, or in another suitable location. Detailed information must be provided in a suitable location if the initial attribution does not provide detailed information.
+
+Attribution text on a splash screen must be easily legible and visible such that the typical viewer has time to comprehend the attribution, though it may appear on the screen at the same time as other attribution (e.g., for the game’s renderer).
+
+== Other considerations ==
+If OpenStreetMap data is being used in some areas or for some features but not others, we prefer to only be attributed for those areas or features that actually contain OpenStreetMap data. Optimally, attribution would dynamically change based on the location viewed, but this is not required.

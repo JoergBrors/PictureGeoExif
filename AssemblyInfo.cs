@@ -2,7 +2,7 @@ using System.Reflection;
 using System.Runtime.Versioning;
 using System.Windows;
 
-[assembly: AssemblyCompany("PictureExifclone")]
+[assembly: AssemblyCompany("Jörg Brors")]
 [assembly: AssemblyConfiguration("Debug")]
 [assembly: AssemblyFileVersion("1.0.0.0")]
 [assembly: AssemblyInformationalVersion("1.0.0")]
@@ -10,6 +10,7 @@ using System.Windows;
 [assembly: AssemblyTitle("PictureExifclone")]
 [assembly: AssemblyVersion("1.0.0.0")]
 [assembly: TargetPlatform("Windows7.0")]
+[assembly: AssemblyCopyright("Copyright © 2026 Jörg Brors")]
 
 [assembly: ThemeInfo(
     ResourceDictionaryLocation.None,            //where theme specific resource dictionaries are located

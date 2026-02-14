@@ -225,6 +225,12 @@
                              Background="White" Padding="5" Height="40" FontSize="11"/>
                     <Button x:Name="ChangeOutputFolderButton" Content="Speicherort ändern" 
                             Height="25" Click="ChangeOutputFolderButton_Click" FontSize="12"/>
+                    <Separator Margin="0,10,0,10"/>
+
+                    <!-- Lizenz-Button (standardkonform am unteren Ende) -->
+                    <Button x:Name="ShowLicensesButton" Content="📜 Lizenzen anzeigen" 
+                                Height="30" Click="ShowLicensesButton_Click" FontSize="12"
+                                 Background="#FF607D8B" Foreground="White"/>
                 </StackPanel>
             </Border>
         </Grid>
