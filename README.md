@@ -1,76 +1,102 @@
-# PictureExifclone - Bild Georeferenzierungs-Anwendung
+# PictureExifclone — Bild-Georeferenzierungs-Anwendung (Deutsch)
 
-Eine WPF-Anwendung für .NET 8, die es ermöglicht, GPS-Koordinaten zu Bildern hinzuzufügen.
+## Kurzbeschreibung
 
-## Funktionen
+PictureExifclone ist eine WPF-Anwendung (.NET 8) zum Hinzufügen und Bearbeiten von GPS-EXIF-Daten in Bilddateien. Die Anwendung bietet Funktionen zum Laden, Anzeigen, Bearbeiten und Exportieren von Bildern sowie verschiedene Möglichkeiten, GPS-Koordinaten auszuwählen und in die EXIF-Metadaten zu schreiben.
 
-### 1. Bilder laden
-- **Dateiauswahl**: Klicken Sie auf "Bilder laden" um einen oder mehrere Bilder auszuwählen
-- **Drag & Drop**: Ziehen Sie Bilder direkt in die Anwendung
-- Unterstützte Formate: JPG, JPEG, PNG, BMP, TIF, TIFF
+In diesem README befindet sich die vollständige Nutzungs- und Build-Dokumentation. Per-Verzeichnis-READMEs beschreiben den Inhalt der Unterordner; diese sind mit diesem Root-README und dem Root-`changelog.md` verknüpft.
 
-### 2. GPS-Koordinaten auswählen
-Es gibt drei Möglichkeiten, GPS-Koordinaten festzulegen:
+## Projekte in der Solution
 
-#### a) OpenStreetMap-Karte
-- Klicken Sie auf die Karte, um einen Punkt auszuwählen
-- Die Koordinaten werden automatisch übernommen
+- `PictureExifclone` — Hauptanwendung (WPF, .NET 8)
+- `BenchmarkSuite1` — Benchmark-Projekt (falls vorhanden)
 
-#### b) Referenzbild
-- Klicken Sie auf "Referenzbild verwenden"
-- Wählen Sie ein Bild mit bestehenden GPS-EXIF-Daten
-- Die GPS-Koordinaten werden aus dem Referenzbild extrahiert
+## Verzeichnis-READMEs
 
-#### c) Vorhandenes Bild bearbeiten
-- Wählen Sie ein Bild aus der Liste, das bereits GPS-Daten hat
-- Klicken Sie auf "Bild bearbeiten"
-- Die GPS-Koordinaten des Bildes werden auf der Karte angezeigt
+Zur besseren Struktur befinden sich in relevanten Unterverzeichnissen eigene `README.md`-Dateien. Diese beschreiben die Dateien im jeweiligen Verzeichnis und wie sie in das Gesamtprojekt passen.
 
-### 3. GPS-Daten anwenden
-- Wählen Sie ein Bild aus der Liste
-- Stellen Sie sicher, dass GPS-Koordinaten ausgewählt sind
-- Klicken Sie auf "GPS auf ausgewähltes Bild anwenden"
-- Die GPS-Daten werden in die EXIF-Metadaten des Bildes geschrieben
+Aktuelle Verzeichnis-READMEs:
 
-### 4. Alle Bilder speichern
-- Klicken Sie auf "Alle speichern"
-- Die Anwendung fragt, ob die aktuellen GPS-Koordinaten auf alle Bilder ohne GPS-Daten angewendet werden sollen
-- Bestätigen Sie, um alle Änderungen zu speichern
+- `Services/README.md` — Beschreibung der Service-Klassen (Thumbnails, EXIF, Speicher-APIs)
+- `BenchmarkSuite1/README.md` — Benchmark-Project Anleitung
 
-## Technische Details
+Verwenden Sie diese Verzeichnis-READMEs für kontextbezogene Details. Das Root-README bleibt die zentrale Einstiegspage.
 
-### Verwendete NuGet-Pakete
-- **Microsoft.Web.WebView2**: Für die Integration der OpenStreetMap/Leaflet-Karte
-- **MetadataExtractor**: Zum Lesen von EXIF-Metadaten
-- **SixLabors.ImageSharp**: Zum Schreiben von EXIF-GPS-Daten
+## Changelog-Verhalten (Root & Verzeichnisse)
 
-### GPS-Datenformat
-Die Anwendung schreibt folgende EXIF-Tags:
-- `GPSLatitude`: Breitengrad im Grad/Minuten/Sekunden-Format
-- `GPSLongitude`: Längengrad im Grad/Minuten/Sekunden-Format
-- `GPSLatitudeRef`: N (Nord) oder S (Süd)
-- `GPSLongitudeRef`: E (Ost) oder W (West)
+- Root-`changelog.md` im Repository-Stamm ist das zentrale Änderungsprotokoll und Release-Log.
+- Falls ein Verzeichnis eigene Änderungen protokollieren möchte, erstellt dort eine lokale `changelog.md`.
+  - Diese lokale Datei sollte eine kurze Überschrift und die Relevanz zur Root-Changelog enthalten.
+  - Beispielkopf für `Services/changelog.md`:
 
-## Bedienung
+    # Services Changelog
+    Dies ist ein Verzeichnis-spezifisches Änderungsprotokoll. Wichtige Änderungen werden auch im Root-`changelog.md` referenziert.
 
-1. Starten Sie die Anwendung
-2. Laden Sie Bilder per Drag & Drop oder über den Button "Bilder laden"
-3. Wählen Sie GPS-Koordinaten auf einer der drei Arten:
-   - Klicken auf die Karte
-   - Referenzbild verwenden
-   - Aus vorhandenem Bild
-4. Wenden Sie die Koordinaten auf einzelne oder alle Bilder an
-5. Speichern Sie die Änderungen
+- Empfehlung: Immer einen Eintrag im Root-`changelog.md` anlegen (oder referenzieren), wenn Änderungen die Benutzer-Funktionen betreffen oder Release-Notes erzeugt werden.
 
-## Hinweise
+## Kurzübersicht der Funktionen
 
-- Die Anwendung überschreibt die Originaldateien. Erstellen Sie vorher eine Sicherungskopie!
-- GPS-Koordinaten werden direkt in die EXIF-Metadaten geschrieben
-- Die Karte zeigt standardmäßig Deutschland (Zentrum bei 51.1657°N, 10.4515°E)
-- Bereits vorhandene GPS-Daten in Bildern werden in der Liste angezeigt
+- Bilder per Datei-Dialog oder Drag & Drop laden
+- Vorschau / Thumbnails (performance- und speicheroptimiert)
+- Auswahl von GPS-Koordinaten über:
+  - Interaktive Karte (WebView2 / OpenStreetMap / Leaflet)
+  - Referenzbild mit vorhandenen GPS-EXIF-Daten
+  - vorhandenes Bild bearbeiten (über Liste)
+- GPS-Daten in EXIF schreiben (inkl. `GPSLatitude`, `GPSLongitude`, `GPSLatitudeRef`, `GPSLongitudeRef`)
+- Einzelbild- oder Stapelspeicherung
 
-## Systemanforderungen
+## Kernkomponenten und Verhalten (Kurzdoku)
 
-- Windows 10 oder höher
-- .NET 8 Runtime
-- WebView2 Runtime (wird normalerweise mit Windows 10/11 mitgeliefert)
+1. `ImageService` (Siehe `Services/ImageService.cs` / `Services/README.md`)
+2. `OptimizedImageService` (Siehe `Services/OptimizedImageService.cs` / `Services/README.md`)
+
+(Die ausführlichen API-Details und Beispiele befinden sich in `Services/README.md`.)
+
+## Anleitungen für Entwickler
+
+### Voraussetzungen
+
+- .NET 8 SDK installiert
+- (optional) Visual Studio 2022/2023 mit .NET Desktop-Entwicklung
+- WebView2 Runtime installiert, falls Karte genutzt wird
+
+### Projekt öffnen
+
+- Lokales Klonen: `git clone https://github.com/JoergBrors/PictureGeoExif.git`
+- Solution öffnen mit Visual Studio oder über CLI
+
+### Build & Run (lokal)
+
+- CLI (Debug):
+  - `dotnet build PictureExifclone.csproj -c Debug`
+  - `dotnet run --project PictureExifclone.csproj`
+- Debug in Visual Studio: Solution öffnen, `PictureExifclone` als Startprojekt wählen und starten.
+
+### Builden aus einem Git-Tag ("tag build")
+
+Siehe Root-`changelog.md` für eine Schritt-für-Schritt-Anleitung, wie man Builds aus einem Tag erzeugt. Kurze Zusammenfassung:
+
+1. `git fetch --all --tags`
+2. `git checkout tags/<tag> -b build-<tag>`
+3. `dotnet build PictureExifclone.csproj -c Release`
+4. `dotnet publish PictureExifclone.csproj -c Release -o ./publish`
+
+## Tests & Benchmarks
+
+- `BenchmarkSuite1` kann mit `dotnet run --project BenchmarkSuite1/BenchmarkSuite1.csproj -c Release` gestartet werden.
+
+## Mitwirken (Contributing)
+
+- Bitte Issues im GitHub-Repository eröffnen und Pull Requests gegen `main` einreichen.
+- Für grössere Änderungen bitte vorher ein Issue mit Design/Architekturvorschlag öffnen.
+
+## Lizenz
+
+- Prüfen Sie die enthaltene Lizenz-Datei im Repository (sofern vorhanden) für Nutzungs- und Verbreitungsbedingungen.
+
+## Kontakt
+
+- Projekt im lokalen Repo: `E:\Code\PictureGeoExif` (Beispielpfad)
+
+```text
+Hinweis: Verzeichnis-READMEs und lokale `changelog.md` sollten immer mit dem Root-`changelog.md` verknüpft werden, damit Release-Notes zentral gepflegt sind.
