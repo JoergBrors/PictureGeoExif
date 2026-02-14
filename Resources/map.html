@@ -13,6 +13,11 @@
 <body>
     <div id='map'></div>
     <script>
+        // UTF-8 safe base64 helper for SVG strings
+        function btoaUtf8(str) {
+            return btoa(unescape(encodeURIComponent(str)));
+        }
+
         var map = L.map('map').setView([51.1657, 10.4515], 6);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap contributors',
@@ -29,48 +34,65 @@
         var clickIconHtml = '<svg xmlns="http://www.w3.org/2000/svg" width="25" height="35" viewBox="0 0 25 35"><path fill="#FF5722" stroke="#FFF" stroke-width="2" d="M12.5 0C7.25 0 3 4.25 3 9.5c0 6.25 9.5 23.5 9.5 23.5S22 15.75 22 9.5C22 4.25 17.75 0 12.5 0z"/><circle cx="12.5" cy="9.5" r="4" fill="#FFF"/></svg>';
 
         var selectedIcon = L.icon({
-            iconUrl: 'data:image/svg+xml;base64,' + btoa(selectedIconHtml),
+            iconUrl: 'data:image/svg+xml;base64,' + btoaUtf8(selectedIconHtml),
             iconSize: [32, 42],
             iconAnchor: [16, 42],
             popupAnchor: [0, -42]
         });
 
         var normalIcon = L.icon({
-            iconUrl: 'data:image/svg+xml;base64,' + btoa(normalIconHtml),
+            iconUrl: 'data:image/svg+xml;base64,' + btoaUtf8(normalIconHtml),
             iconSize: [25, 35],
-            iconAnchor: [12.5, 35],
+            iconAnchor: [12, 35],
             popupAnchor: [0, -35]
         });
 
         var clickIcon = L.icon({
-            iconUrl: 'data:image/svg+xml;base64,' + btoa(clickIconHtml),
+            iconUrl: 'data:image/svg+xml;base64,' + btoaUtf8(clickIconHtml),
             iconSize: [25, 35],
-            iconAnchor: [12.5, 35],
+            iconAnchor: [12, 35],
             popupAnchor: [0, -35]
         });
 
         map.on('click', function(e) {
             var lat = e.latlng.lat;
             var lng = e.latlng.lng;
-            
+
             if (currentMarker) {
                 map.removeLayer(currentMarker);
             }
-            
+
             currentMarker = L.marker([lat, lng], { icon: clickIcon }).addTo(map);
             currentMarker.bindPopup('<b>Neue Koordinaten:</b><br>Lat: ' + lat.toFixed(6) + '<br>Lng: ' + lng.toFixed(6)).openPopup();
-            
-            window.chrome.webview.postMessage(lat + ',' + lng);
+
+            // send coordinates to host (WPF WebView2)
+            try {
+                window.chrome.webview.postMessage(lat + ',' + lng);
+            } catch (err) {
+                // In non-WebView2 contexts, chrome.webview may not exist
+                console.warn('postMessage failed', err);
+            }
         });
 
         function addImageMarkers(markers) {
             imageMarkers.forEach(m => map.removeLayer(m));
             imageMarkers = [];
-            
+
             markers.forEach(function(m) {
                 var marker = L.marker([m.lat, m.lng], { icon: normalIcon }).addTo(map);
                 marker.bindPopup('<b>' + m.name + '</b><br>Lat: ' + m.lat.toFixed(6) + '<br>Lng: ' + m.lng.toFixed(6));
                 marker.imageId = m.id;
+
+                // click handler: highlight on map and notify host of selection
+                marker.on('click', function(e) {
+                    try {
+                        setSelectedMarker(m.lat, m.lng, m.name);
+                        window.chrome.webview.postMessage('select:' + m.id);
+                    } catch (err) {
+                        console.error('marker click postMessage failed', err);
+                    }
+                });
+
                 imageMarkers.push(marker);
             });
 
@@ -84,9 +106,9 @@
             if (selectedMarker) {
                 map.removeLayer(selectedMarker);
             }
-            
+
             selectedMarker = L.marker([lat, lng], { icon: selectedIcon }).addTo(map);
-            selectedMarker.bindPopup('<b>Ausgew‰hlt:</b><br>' + name + '<br>Lat: ' + lat.toFixed(6) + '<br>Lng: ' + lng.toFixed(6)).openPopup();
+            selectedMarker.bindPopup('<b>Ausgew√§hlt:</b><br>' + name + '<br>Lat: ' + lat.toFixed(6) + '<br>Lng: ' + lng.toFixed(6)).openPopup();
             map.setView([lat, lng], Math.max(map.getZoom(), 13));
         }
 

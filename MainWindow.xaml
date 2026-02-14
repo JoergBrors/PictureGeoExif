@@ -202,6 +202,10 @@
                         Height="40" Margin="0,0,0,5" Click="SaveAllButton_Click"
                         Background="#FF2196F3" Foreground="White" FontWeight="Bold" FontSize="14"
                         IsEnabled="False"/>
+                <Button x:Name="CommitGPSToAllPicturesButton" Content="💾 GPS auf alle Bilder anwenden und speichern" 
+            Height="40" Margin="0,0,0,5" Click="CommitGPSToAllPictures_Click"
+            Background="#FF2196F3" Foreground="White" FontWeight="Bold" FontSize="14"
+            IsEnabled="False"/>
                 <Button x:Name="ClearAllButton" Content="🗑️ Alle entfernen" 
                         Height="35" Margin="0,0,0,5" Click="ClearAllButton_Click"
                         Background="#FFFF9800" Foreground="White" FontSize="13"/>

@@ -82,6 +82,58 @@ namespace PictureExifclone
             try
             {
                 var message = e.TryGetWebMessageAsString();
+
+                // Handle marker selection messages from the webview (format: "select:ID")
+                if (!string.IsNullOrEmpty(message) && message.StartsWith("select:"))
+                {
+                    var idStr = message.Substring("select:".Length);
+                    if (int.TryParse(idStr, out int idx))
+                    {
+                        // Run on UI thread
+                        Dispatcher.Invoke(() =>
+                        {
+                            if (idx >= 0 && idx < images.Count)
+                            {
+                                var imageItem = images[idx];
+
+                                if (selectedImage != null)
+                                    selectedImage.IsSelected = false;
+
+                                selectedImage = imageItem;
+                                selectedImage.IsSelected = true;
+
+                                // Scroll to the selected image in the list
+                                var itemsPanel = FindVisualChild<Panel>(ImageItemsControl);
+                                if (itemsPanel != null)
+                                {
+                                    var container = ImageItemsControl.ItemContainerGenerator.ContainerFromItem(imageItem);
+                                    if (container is FrameworkElement element)
+                                    {
+                                        element.BringIntoView();
+                                    }
+                                }
+
+                                if (selectedImage.HasGpsData)
+                                {
+                                    currentLatitude = selectedImage.Latitude!.Value;
+                                    currentLongitude = selectedImage.Longitude!.Value;
+                                    hasCoordinates = true;
+                                    CurrentGpsText.Text = $"Lat: {currentLatitude:F6}, Lng: {currentLongitude:F6}";
+                                }
+                                else
+                                {
+                                    hasCoordinates = false;
+                                    CurrentGpsText.Text = "Keine Koordinaten ausgewählt";
+                                }
+
+                                UpdateButtonStates();
+                            }
+                        });
+
+                        return;
+                    }
+                }
+
                 var parts = message.Split(',');
                 if (parts.Length == 2 &&
                     double.TryParse(parts[0],
@@ -104,6 +156,22 @@ namespace PictureExifclone
             {
                 MessageBox.Show($"Fehler beim Verarbeiten der Koordinaten: {ex.Message}", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        // Helper method to find visual child
+        private static T? FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
+        {
+            for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
+                if (child is T typedChild)
+                    return typedChild;
+
+                var result = FindVisualChild<T>(child);
+                if (result != null)
+                    return result;
+            }
+            return null;
         }
 
         private string GetLeafletHtml()
@@ -136,11 +204,10 @@ namespace PictureExifclone
             html.AppendLine("        var gridLayer = null;");
             html.AppendLine("        var currentGridSize = 100;");
             html.AppendLine("");
-            
-            // SVG Icons als keine ???????
             html.AppendLine("        var selectedIconSvg = 'PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSI0MiIgdmlld0JveD0iMCAwIDMyIDQyIj48cGF0aCBmaWxsPSIjMjE5NkYzIiBzdHJva2U9IiNGRkYiIHN0cm9rZS13aWR0aD0iMiIgZD0iTTE2IDBDOS40IDAgNCA1LjQgNCAxMmMwIDggMTIgMzAgMTIgMzBzMTItMjIgMTItMzBjMC02LjYtNS40LTEyLTEyLTEyeiIvPjxjaXJjbGUgY3g9IjE2IiBjeT0iMTIiIHI9IjYiIGZpbGw9IiNGRkYiLz48L3N2Zz4=';");
-            html.AppendLine("        var normalIconSvg = 'PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNSIgaGVpZ2h0PSMzNSIgdmlld0JveD0iMCAwIDI1IDM1Ij48cGF0aCBmaWxsPSIjNENBRjUwIiBzdHJva2U9IiNGRkYiIHN0cm9rZS13aWR0aD0iMiIgZD0iTTEyLjUgMEM3LjI1IDAgMyA0LjI1IDMgOS41YzAgNi4yNSA5LjUgMjMuNSA5LjUgMjMuNVMyMiAxNS43NSAyMiA5LjVDMjIgNC4yNSAxNy43NSAwIDEyLjUgMHoiLz48Y2lyY2xlIGN4PSIxMi41IiBjeT0iOS41IiByPSI0IiBmaWxsPSIjRkZGIi8+PC9zdmc+';");
-            html.AppendLine("        var clickIconSvg = 'PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNSIgaGVpZ2h0PSMzNSIgdmlld0JveD0iMCAwIDI1IDM1Ij48cGF0aCBmaWxsPSIjRkY1NzIyIiBzdHJva2U9IiNGRkYiIHN0cm9rZS13aWR0aD0iMiIgZD0iTTEyLjUgMEM3LjI1IDAgMyA0LjI1IDMgOS41YzAgNi4yNSA5LjUgMjMuNSA5LjUgMjMuNVMyMiAxNS43NSAyMiA5LjVDMjIgNC4yNSAxNy43NSAwIDEyLjUgMHoiLz48Y2lyY2xlIGN4PSIxMi41IiBjeT0iOS41IiByPSI0IiBmaWxsPSIjRkZGIi8+PC9zdmc+';");
+            html.AppendLine("        var normalIconSvg = 'PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNSIgaGVpZ2h0PSIzNSIgdmlld0JveD0iMCAwIDI1IDM1Ij48cGF0aCBmaWxsPSIjNENBRjUwIiBzdHJva2U9IiNGRkYiIHN0cm9rZS13aWR0aD0iMiIgZD0iTTEyLjUgMEM3LjI1IDAgMyA0LjI1IDMgOS41YzAgNi4yNSA5LjUgMjMuNSA5LjUgMjMuNVMyMiAxNS43NSAyMiA5LjVDMjIgNC4yNSAxNy43NSAwIDEyLjUgMHoiLz48Y2lyY2xlIGN4PSIxMi41IiBjeT0iOS41IiByPSI0IiBmaWxsPSIjRkZGIi8+PC9zdmc+';");
+            html.AppendLine("        var clickIconSvg = 'PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNSIgaGVpZ2h0PSIzNSIgdmlld0JveD0iMCAwIDI1IDM1Ij48cGF0aCBmaWxsPSIjRkY1NzIyIiBzdHJva2U9IiNGRkYiIHN0cm9rZS13aWR0aD0iMiIgZD0iTTEyLjUgMEM3LjI1IDAgMyA0LjI1IDMgOS41YzAgNi4yNSA5LjUgMjMuNSA5LjUgMjMuNVMyMiAxNS43NSAyMiA5LjVDMjIgNC4yNSAxNy43NSAwIDEyLjUgMHoiLz48Y2lyY2xlIGN4PSIxMi41IiBjeT0iOS41IiByPSI0IiBmaWxsPSIjRkZGIi8+PC9zdmc+';");
+
             html.AppendLine("");
             html.AppendLine("        var selectedIcon = L.icon({");
             html.AppendLine("            iconUrl: 'data:image/svg+xml;base64,' + selectedIconSvg,");
@@ -179,6 +246,13 @@ namespace PictureExifclone
             html.AppendLine("                var marker = L.marker([m.lat, m.lng], { icon: normalIcon }).addTo(map);");
             html.AppendLine("                marker.bindPopup('<b>' + m.name + '</b><br>Lat: ' + m.lat.toFixed(6) + '<br>Lng: ' + m.lng.toFixed(6));");
             html.AppendLine("                marker.imageId = m.id;");
+            // add click handler to send selection message back to host and visually select the marker
+            html.AppendLine("                marker.on('click', function(e) {");
+            html.AppendLine("                    try {");
+            html.AppendLine("                        setSelectedMarker(m.lat, m.lng, m.name);");
+            html.AppendLine("                        window.chrome.webview.postMessage('select:' + m.id);");
+            html.AppendLine("                    } catch (err) { console.error(err); }");
+            html.AppendLine("                });");
             html.AppendLine("                imageMarkers.push(marker);");
             html.AppendLine("            });");
             html.AppendLine("            if (markers.length > 0) {");
@@ -230,7 +304,7 @@ namespace PictureExifclone
             html.AppendLine("    </script>");
             html.AppendLine("</body>");
             html.AppendLine("</html>");
-            
+
             return html.ToString();
         }
 
@@ -405,6 +479,8 @@ namespace PictureExifclone
 
             if (SaveAllButton != null)
                 SaveAllButton.IsEnabled = hasImages;
+            if (CommitGPSToAllPicturesButton != null)
+                CommitGPSToAllPicturesButton.IsEnabled = hasImages && hasCoordinates;
             if (ApplyGpsButton != null)
                 ApplyGpsButton.IsEnabled = hasSelection && hasCoordinates;
         }
@@ -463,6 +539,45 @@ namespace PictureExifclone
 
         private void SaveAllButton_Click(object sender, RoutedEventArgs e)
         {
+            int savedCount = 0;
+            int errorCount = 0;
+
+            foreach (var img in images)
+            {
+                try
+                {
+                    // Preserve each image's own coordinates; do NOT overwrite with currentLatitude/currentLongitude.
+                    double? lat = img.Latitude;
+                    double? lon = img.Longitude;
+
+                    string oldPath = img.FilePath;
+                    string newPath = imageService.SaveSingleImage(img.FilePath, settings.OutputFolder, lat, lon);
+
+                    // Invalidiere Cache für alten Pfad
+                    imageService.InvalidateThumbnailCache(oldPath);
+
+                    img.FilePath = newPath;
+                    if (lat.HasValue && lon.HasValue)
+                    {
+                        img.Latitude = lat.Value;
+                        img.Longitude = lon.Value;
+                    }
+                    img.Thumbnail = imageService.CreateThumbnail(newPath);
+
+                    savedCount++;
+                }
+                catch (Exception)
+                {
+                    errorCount++;
+                }
+            }
+
+            UpdateAllMarkersOnMap();
+            MessageBox.Show($"{savedCount} Bild(er) erfolgreich gespeichert!\n{errorCount} Fehler.",
+                "Fertig", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        private void CommitGPSToAllPictures_Click(object sender, RoutedEventArgs e)
+        {
             if (!hasCoordinates)
             {
                 var result = MessageBox.Show(
@@ -488,7 +603,7 @@ namespace PictureExifclone
 
                     // Invalidiere Cache für alten Pfad
                     imageService.InvalidateThumbnailCache(oldPath);
-                    
+
                     img.FilePath = newPath;
                     if (lat.HasValue && lon.HasValue)
                     {
@@ -509,7 +624,6 @@ namespace PictureExifclone
             MessageBox.Show($"{savedCount} Bild(er) erfolgreich gespeichert!\n{errorCount} Fehler.",
                 "Fertig", MessageBoxButton.OK, MessageBoxImage.Information);
         }
-        
         private void SaveSingleImage_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button button && button.Tag is ImageItem imageItem)
@@ -594,6 +708,22 @@ namespace PictureExifclone
             {
                 try
                 {
+                    // Check if image already has GPS data and ask for confirmation
+                    if (selectedImage.HasGpsData)
+                    {
+                        var result = MessageBox.Show(
+                            $"Das Bild '{selectedImage.FileName}' hat bereits GPS-Koordinaten:\n\n" +
+                            $"Aktuell: Lat {selectedImage.Latitude:F6}, Lng {selectedImage.Longitude:F6}\n" +
+                            $"Neu: Lat {currentLatitude:F6}, Lng {currentLongitude:F6}\n\n" +
+                            "Möchten Sie die vorhandenen Koordinaten ersetzen?",
+                            "GPS-Daten ersetzen?",
+                            MessageBoxButton.YesNo,
+                            MessageBoxImage.Question);
+
+                        if (result != MessageBoxResult.Yes)
+                            return;
+                    }
+
                     string oldPath = selectedImage.FilePath;
                     
                     string newPath = imageService.SaveSingleImage(
@@ -647,24 +777,47 @@ namespace PictureExifclone
 
         private void ClearAllButton_Click(object sender, RoutedEventArgs e)
         {
-            if (images.Count == 0) return;
-
-            var result = MessageBox.Show(
-                $"Möchten Sie alle {images.Count} Bilder aus der Liste entfernen?\n\n(Die Dateien werden nicht gelöscht)",
-                "Alle entfernen",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
-
-            if (result == MessageBoxResult.Yes)
+            if (images.Count > 0)
             {
-                selectedImage = null;
-                images.Clear();
-                
-                string script = "imageMarkers.forEach(m => map.removeLayer(m)); imageMarkers = []; clearSelectedMarker();";
-                MapWebView.CoreWebView2?.ExecuteScriptAsync(script);
-                
-                UpdateButtonStates();
+
+                var result = MessageBox.Show(
+                    $"Möchten Sie alle {images.Count} Bilder aus der Liste entfernen?\n\n(Die Dateien werden nicht gelöscht)",
+                    "Alle entfernen",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+                if (result == MessageBoxResult.Yes) {
+                    selectedImage = null;
+                    images.Clear();
+                }
+            }   
+            
+            
+            // Remove markers in the map (safely) and clear selected/current markers
+            try
+            {
+                if (MapWebView?.CoreWebView2 != null)
+                {
+                    string script = @"
+                    try {
+                        if (typeof imageMarkers !== 'undefined') {
+                            imageMarkers.forEach(m => { try { map.removeLayer(m); } catch(e){} });
+                            imageMarkers = [];
+                        }
+                        if (typeof currentMarker !== 'undefined' && currentMarker) { try { map.removeLayer(currentMarker); } catch(e){} currentMarker = null; }
+                        if (typeof selectedMarker !== 'undefined' && selectedMarker) { try { map.removeLayer(selectedMarker); } catch(e){} selectedMarker = null; }
+                        if (typeof clearSelectedMarker === 'function') { clearSelectedMarker(); }
+                    } catch(e) { console.error(e); }";
+                    MapWebView.CoreWebView2.ExecuteScriptAsync(script);
+                }
+            }catch (Exception ex)
+            {
+                MessageBox.Show($"Fehler beim Aktualisieren der Karte: {ex.Message}", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+
+
+
+            UpdateButtonStates();
+            
         }
 
         private void ChangeOutputFolderButton_Click(object sender, RoutedEventArgs e)
@@ -721,112 +874,6 @@ namespace PictureExifclone
                 MessageBox.Show($"Fehler beim Oeffnen des Lizenz-Fensters: {ex.Message}", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
-
-        private void CreateReleaseZipButton_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
-                string outputFolder = Path.Combine(baseDir, "release");
-                
-                // Lösche alten Release-Ordner falls vorhanden
-                if (System.IO.Directory.Exists(outputFolder))
-                {
-                    System.IO.Directory.Delete(outputFolder, true);
-                }
-                System.IO.Directory.CreateDirectory(outputFolder);
-
-                // Suche die EXE im aktuellen Verzeichnis
-                string exeName = "PictureExifclone.exe";
-                string exePath = Path.Combine(baseDir, exeName);
-                
-                if (!File.Exists(exePath))
-                {
-                    // Versuche im bin\Release oder bin\Debug zu finden
-                    var searchDirs = new[] {
-                        Path.Combine(baseDir, "bin", "Release", "net8.0-windows"),
-                        Path.Combine(baseDir, "bin", "Debug", "net8.0-windows")
-                    };
-                    
-                    foreach (var dir in searchDirs)
-                    {
-                        var candidate = Path.Combine(dir, exeName);
-                        if (File.Exists(candidate))
-                        {
-                            exePath = candidate;
-                            break;
-                        }
-                    }
-                }
-
-                if (File.Exists(exePath))
-                {
-                    File.Copy(exePath, Path.Combine(outputFolder, exeName), true);
-                }
-                else
-                {
-                    MessageBox.Show($"EXE nicht gefunden. Bitte zuerst das Projekt kompilieren.\n\nGesucht in: {baseDir}", 
-                        "Warnung", MessageBoxButton.OK, MessageBoxImage.Warning);
-                }
-
-                // Kopiere LICENSE und THIRD-PARTY-LICENSES.md
-                // Gehe ein Verzeichnis hoch, falls wir im bin-Ordner sind
-                string repoRoot = baseDir;
-                if (baseDir.Contains("\\bin\\"))
-                {
-                    // Navigiere zum Projekt-Root
-                    var dirInfo = new DirectoryInfo(baseDir);
-                    while (dirInfo != null && dirInfo.Name != "bin")
-                    {
-                        dirInfo = dirInfo.Parent;
-                    }
-                    if (dirInfo?.Parent != null)
-                    {
-                        repoRoot = dirInfo.Parent.FullName;
-                    }
-                }
-
-                foreach (var fileName in new[] { "LICENSE", "THIRD-PARTY-LICENSES.md" })
-                {
-                    string srcPath = Path.Combine(repoRoot, fileName);
-                    if (File.Exists(srcPath))
-                    {
-                        File.Copy(srcPath, Path.Combine(outputFolder, fileName), true);
-                    }
-                }
-
-                // Kopiere licenses Ordner
-                string licensesSrc = Path.Combine(repoRoot, "licenses");
-                if (System.IO.Directory.Exists(licensesSrc))
-                {
-                    string licensesDest = Path.Combine(outputFolder, "licenses");
-                    CopyDirectory(licensesSrc, licensesDest);
-                }
-
-                // Erstelle ZIP
-                string zipPath = Path.Combine(baseDir, "PictureExifclone-release.zip");
-                if (File.Exists(zipPath))
-                {
-                    File.Delete(zipPath);
-                }
-                ZipFile.CreateFromDirectory(outputFolder, zipPath);
-
-                // Zeige Inhalt des Release-Ordners
-                var files = System.IO.Directory.GetFiles(outputFolder, "*.*", System.IO.SearchOption.AllDirectories)
-                    .Select(f => f.Replace(outputFolder, "").TrimStart('\\'))
-                    .ToList();
-
-                string fileList = string.Join("\n", files);
-                MessageBox.Show($"Release ZIP erstellt: {zipPath}\n\nEnthaltene Dateien:\n{fileList}", 
-                    "Fertig", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Fehler beim Erstellen des Release-Zips: {ex.Message}\n\nDetails: {ex.StackTrace}", 
-                    "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
         private void CopyDirectory(string sourceDir, string destDir)
         {
             foreach (var dirPath in System.IO.Directory.GetDirectories(sourceDir, "*", System.IO.SearchOption.AllDirectories))
