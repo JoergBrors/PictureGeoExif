@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.IO;
-using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Media.Imaging;
 using SixLabors.ImageSharp;
@@ -14,20 +12,20 @@ using SixLabors.ImageSharp.Formats.Jpeg;
 namespace PictureExifclone.Services
 {
     /// <summary>
-    /// Service für Bildoperationen mit Caching und Performance-Optimierungen
+    /// Optimized ImageService mit Caching und Async-Operationen
     /// </summary>
-    public class ImageService : IDisposable
+    public class OptimizedImageService : IDisposable
     {
         private readonly string tempFolder;
         private bool disposed = false;
         
-        // Thumbnail-Cache mit WeakReference für automatische Speicherverwaltung
+        // Cache für Thumbnails (WeakReference ermöglicht GC bei Speicherdruck)
         private readonly ConcurrentDictionary<string, WeakReference<BitmapImage>> thumbnailCache = new();
         
-        // Locks für Thread-sichere Thumbnail-Erstellung
+        // SemaphoreSlim für Thread-sichere Thumbnail-Erstellung
         private readonly ConcurrentDictionary<string, SemaphoreSlim> thumbnailLocks = new();
 
-        public ImageService()
+        public OptimizedImageService()
         {
             tempFolder = Path.Combine(Path.GetTempPath(), $"PictureExifclone_{Guid.NewGuid():N}");
             Directory.CreateDirectory(tempFolder);
@@ -52,7 +50,7 @@ namespace PictureExifclone.Services
                 thumbnailCache.TryRemove(imagePath, out _);
             }
 
-            // Hole Lock für diesen spezifischen Pfad (verhindert doppelte Erstellung)
+            // Hole Lock für diesen spezifischen Pfad
             var semaphore = thumbnailLocks.GetOrAdd(imagePath, _ => new SemaphoreSlim(1, 1));
             
             await semaphore.WaitAsync();
@@ -70,6 +68,7 @@ namespace PictureExifclone.Services
                 
                 if (thumbnail != null)
                 {
+                    // Speichere im Cache
                     thumbnailCache[imagePath] = new WeakReference<BitmapImage>(thumbnail);
                 }
                 
@@ -88,40 +87,11 @@ namespace PictureExifclone.Services
         }
 
         /// <summary>
-        /// Erstellt ein Thumbnail mit Caching (synchron für Kompatibilität)
+        /// Synchrone Version für Kompatibilität
         /// </summary>
         public BitmapImage? CreateThumbnail(string imagePath, int maxWidth = 200)
         {
-            if (disposed || string.IsNullOrEmpty(imagePath) || !File.Exists(imagePath))
-                return null;
-
-            // Prüfe Cache zuerst
-            if (thumbnailCache.TryGetValue(imagePath, out var weakRef))
-            {
-                if (weakRef.TryGetTarget(out var cachedThumbnail))
-                {
-                    return cachedThumbnail;
-                }
-                thumbnailCache.TryRemove(imagePath, out _);
-            }
-
-            // Erstelle Thumbnail ohne Lock (synchroner Pfad)
-            try
-            {
-                var thumbnail = CreateThumbnailInternal(imagePath, maxWidth);
-                
-                if (thumbnail != null)
-                {
-                    thumbnailCache[imagePath] = new WeakReference<BitmapImage>(thumbnail);
-                }
-                
-                return thumbnail;
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Fehler beim Erstellen des Thumbnails: {ex.Message}");
-                return null;
-            }
+            return CreateThumbnailAsync(imagePath, maxWidth).GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -146,7 +116,7 @@ namespace PictureExifclone.Services
                         }));
                     }
                     
-                    // Reduzierte JPEG-Qualität für schnellere Thumbnail-Erstellung (75 statt 85)
+                    // Reduziere JPEG-Qualität für Thumbnails (von 85 auf 75)
                     image.SaveAsJpeg(thumbnailPath, new JpegEncoder { Quality = 75 });
                 }
 
@@ -168,7 +138,16 @@ namespace PictureExifclone.Services
         }
 
         /// <summary>
-        /// Invalidiert Cache für einen spezifischen Pfad
+        /// Lädt mehrere Thumbnails parallel
+        /// </summary>
+        public async Task<BitmapImage?[]> CreateThumbnailsBatchAsync(string[] imagePaths, int maxWidth = 200)
+        {
+            var tasks = imagePaths.Select(path => CreateThumbnailAsync(path, maxWidth)).ToArray();
+            return await Task.WhenAll(tasks);
+        }
+
+        /// <summary>
+        /// Löscht Cache für einen spezifischen Pfad
         /// </summary>
         public void InvalidateThumbnailCache(string imagePath)
         {
@@ -183,9 +162,6 @@ namespace PictureExifclone.Services
             thumbnailCache.Clear();
         }
 
-        /// <summary>
-        /// Lädt ein BitmapImage aus einer Datei - VERBESSERTE VERSION
-        /// </summary>
         private BitmapImage LoadBitmapImageFromFile(string filePath)
         {
             if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
@@ -208,9 +184,6 @@ namespace PictureExifclone.Services
             }
         }
 
-        /// <summary>
-        /// Lädt ein BitmapImage aus einer Datei ohne File-Locking und Cache
-        /// </summary>
         public BitmapImage LoadBitmapImage(string filePath)
         {
             if (disposed || string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
@@ -218,7 +191,6 @@ namespace PictureExifclone.Services
 
             try
             {
-                // Lese Datei komplett in Speicher
                 byte[] imageData = File.ReadAllBytes(filePath);
                 
                 if (imageData == null || imageData.Length == 0)
@@ -246,13 +218,10 @@ namespace PictureExifclone.Services
             }
         }
 
-        /// <summary>
-        /// Kopiert ein Bild in eine temporäre Datei für die Bearbeitung
-        /// </summary>
         public string CreateTempCopy(string sourcePath)
         {
             if (disposed)
-                throw new ObjectDisposedException(nameof(ImageService));
+                throw new ObjectDisposedException(nameof(OptimizedImageService));
             
             if (string.IsNullOrEmpty(sourcePath) || !File.Exists(sourcePath))
                 throw new FileNotFoundException($"Quelldatei nicht gefunden: {sourcePath}");
@@ -261,7 +230,6 @@ namespace PictureExifclone.Services
             {
                 string tempPath = Path.Combine(tempFolder, $"edit_{Guid.NewGuid():N}{Path.GetExtension(sourcePath)}");
                 
-                // Verwende FileStream für bessere Fehlerbehandlung
                 using (var sourceStream = new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.Read))
                 using (var destStream = new FileStream(tempPath, FileMode.Create, FileAccess.Write))
                 {
@@ -276,13 +244,10 @@ namespace PictureExifclone.Services
             }
         }
 
-        /// <summary>
-        /// Speichert GPS-Koordinaten in ein Bild mit verbesserter Fehlerbehandlung
-        /// </summary>
         public void WriteGpsToImage(string imagePath, double latitude, double longitude)
         {
             if (disposed)
-                throw new ObjectDisposedException(nameof(ImageService));
+                throw new ObjectDisposedException(nameof(OptimizedImageService));
             
             if (string.IsNullOrEmpty(imagePath) || !File.Exists(imagePath))
                 throw new FileNotFoundException($"Bilddatei nicht gefunden: {imagePath}");
@@ -290,7 +255,6 @@ namespace PictureExifclone.Services
             string? backupPath = null;
             try
             {
-                // Erstelle Backup
                 backupPath = imagePath + ".bak";
                 File.Copy(imagePath, backupPath, true);
 
@@ -327,13 +291,14 @@ namespace PictureExifclone.Services
                     }
                 }
 
-                // Lösche Backup bei Erfolg
+                // Cache für diesen Pfad invalidieren
+                InvalidateThumbnailCache(imagePath);
+
                 if (backupPath != null && File.Exists(backupPath))
                     File.Delete(backupPath);
             }
             catch (Exception ex)
             {
-                // Stelle Backup wieder her bei Fehler
                 if (backupPath != null && File.Exists(backupPath))
                 {
                     try
@@ -363,13 +328,10 @@ namespace PictureExifclone.Services
             };
         }
 
-        /// <summary>
-        /// Speichert ein bearbeitetes Bild in den Zielordner
-        /// </summary>
         public string SaveEditedImage(byte[] imageBytes, string originalFileName, string outputFolder)
         {
             if (disposed)
-                throw new ObjectDisposedException(nameof(ImageService));
+                throw new ObjectDisposedException(nameof(OptimizedImageService));
             
             if (imageBytes == null || imageBytes.Length == 0)
                 throw new ArgumentException("Bilddaten sind leer", nameof(imageBytes));
@@ -390,7 +352,6 @@ namespace PictureExifclone.Services
                 var newName = $"{baseName}_{DateTime.Now:yyyyMMdd_HHmmss}{ext}";
                 var newPath = Path.Combine(outDir, newName);
 
-                // Sichere atomare Operation
                 var tempPath = newPath + ".tmp";
                 File.WriteAllBytes(tempPath, imageBytes);
                 
@@ -407,13 +368,10 @@ namespace PictureExifclone.Services
             }
         }
 
-        /// <summary>
-        /// Speichert ein einzelnes Bild mit optionalen GPS-Daten
-        /// </summary>
         public string SaveSingleImage(string sourcePath, string outputFolder, double? latitude = null, double? longitude = null)
         {
             if (disposed)
-                throw new ObjectDisposedException(nameof(ImageService));
+                throw new ObjectDisposedException(nameof(OptimizedImageService));
             
             if (string.IsNullOrEmpty(sourcePath) || !File.Exists(sourcePath))
                 throw new FileNotFoundException($"Quelldatei nicht gefunden: {sourcePath}");
@@ -428,14 +386,12 @@ namespace PictureExifclone.Services
                 var newName = $"{baseName}_{DateTime.Now:yyyyMMdd_HHmmss}{ext}";
                 var newPath = Path.Combine(outDir, newName);
 
-                // Kopiere Datei mit FileStream für bessere Fehlerbehandlung
                 using (var sourceStream = new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.Read))
                 using (var destStream = new FileStream(newPath, FileMode.Create, FileAccess.Write))
                 {
                     sourceStream.CopyTo(destStream);
                 }
 
-                // Schreibe GPS wenn vorhanden
                 if (latitude.HasValue && longitude.HasValue)
                 {
                     WriteGpsToImage(newPath, latitude.Value, longitude.Value);
@@ -453,11 +409,12 @@ namespace PictureExifclone.Services
         {
             if (!disposed)
             {
+                ClearThumbnailCache();
+                
                 try
                 {
                     if (Directory.Exists(tempFolder))
                     {
-                        // Versuche mehrmals mit Verzögerung
                         for (int i = 0; i < 3; i++)
                         {
                             try
@@ -477,7 +434,6 @@ namespace PictureExifclone.Services
                 }
                 catch
                 {
-                    // Ignore cleanup errors
                     System.Diagnostics.Debug.WriteLine($"Warnung: Temporärer Ordner konnte nicht gelöscht werden: {tempFolder}");
                 }
                 disposed = true;

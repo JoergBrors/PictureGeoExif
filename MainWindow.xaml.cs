@@ -136,7 +136,7 @@ namespace PictureExifclone
             html.AppendLine("        var currentGridSize = 100;");
             html.AppendLine("");
             
-            // SVG Icons als separate Variablen
+            // SVG Icons als keine ???????
             html.AppendLine("        var selectedIconSvg = 'PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSI0MiIgdmlld0JveD0iMCAwIDMyIDQyIj48cGF0aCBmaWxsPSIjMjE5NkYzIiBzdHJva2U9IiNGRkYiIHN0cm9rZS13aWR0aD0iMiIgZD0iTTE2IDBDOS40IDAgNCA1LjQgNCAxMmMwIDggMTIgMzAgMTIgMzBzMTItMjIgMTItMzBjMC02LjYtNS40LTEyLTEyLTEyeiIvPjxjaXJjbGUgY3g9IjE2IiBjeT0iMTIiIHI9IjYiIGZpbGw9IiNGRkYiLz48L3N2Zz4=';");
             html.AppendLine("        var normalIconSvg = 'PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNSIgaGVpZ2h0PSIzNSIgdmlld0JveD0iMCAwIDI1IDM1Ij48cGF0aCBmaWxsPSIjNENBRjUwIiBzdHJva2U9IiNGRkYiIHN0cm9rZS13aWR0aD0iMiIgZD0iTTEyLjUgMEM3LjI1IDAgMyA0LjI1IDMgOS41YzAgNi4yNSA5LjUgMjMuNSA5LjUgMjMuNVMyMiAxNS43NSAyMiA5LjVDMjIgNC4yNSAxNy43NSAwIDEyLjUgMHoiLz48Y2lyY2xlIGN4PSIxMi41IiBjeT0iOS41IiByPSI0IiBmaWxsPSIjRkZGIi8+PC9zdmc+';");
             html.AppendLine("        var clickIconSvg = 'PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNSIgaGVpZ2h0PSIzNSIgdmlld0JveD0iMCAwIDI1IDM1Ij48cGF0aCBmaWxsPSIjRkY1NzIyIiBzdHJva2U9IiNGRkYiIHN0cm9rZS13aWR0aD0iMiIgZD0iTTEyLjUgMEM3LjI1IDAgMyA0LjI1IDMgOS41YzAgNi4yNSA5LjUgMjMuNSA5LjUgMjMuNVMyMiAxNS43NSAyMiA5LjVDMjIgNC4yNSAxNy43NSAwIDEyLjUgMHoiLz48Y2lyY2xlIGN4PSIxMi41IiBjeT0iOS41IiByPSI0IiBmaWxsPSIjRkZGIi8+PC9zdmc+';");
@@ -309,7 +309,7 @@ namespace PictureExifclone
                             FilePath = filePath
                         };
 
-                        // Thumbnail erstellen mit Fehlerbehandlung
+                        // Thumbnail erstellen mit Fehlerbehandlung (jetzt cached)
                         try
                         {
                             imageItem.Thumbnail = imageService.CreateThumbnail(filePath);
@@ -414,11 +414,6 @@ namespace PictureExifclone
             {
                 try
                 {
-                    // Verwende den vollständigen ImageEditorWindow mit allen Features:
-                    // - Zuschneiden
-                    // - Text/Wasserzeichen
-                    // - Geo-Wasserzeichen
-                    // - Verpixeln
                     var editor = new ImageEditorWindow(
                         imageItem.FilePath,
                         imageItem.Latitude,
@@ -429,9 +424,10 @@ namespace PictureExifclone
 
                     if (editor.ShowDialog() == true && editor.EditedImageBytes != null)
                     {
-                        // Altes Thumbnail freigeben BEVOR das neue Bild gespeichert wird
+                        // Altes Thumbnail freigeben und Cache invalidieren
                         if (imageItem.Thumbnail != null)
                         {
+                            imageService.InvalidateThumbnailCache(imageItem.FilePath);
                             imageItem.Thumbnail = null;
                             GC.Collect();
                             GC.WaitForPendingFinalizers();
@@ -447,13 +443,11 @@ namespace PictureExifclone
                             imageService.WriteGpsToImage(newPath, imageItem.Latitude!.Value, imageItem.Longitude!.Value);
                         }
 
-                        // Pfad aktualisieren
                         imageItem.FilePath = newPath;
                         
-                        // Kurze Verzögerung um sicherzustellen, dass die Datei verfügbar ist
                         System.Threading.Thread.Sleep(100);
                         
-                        // Neues Thumbnail erstellen mit Cache-Umgehung
+                        // Neues Thumbnail erstellen (wird automatisch gecached)
                         imageItem.Thumbnail = imageService.CreateThumbnail(newPath);
 
                         MessageBox.Show($"Bearbeitetes Bild gespeichert:\n{newPath}", "Erfolg", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -462,6 +456,89 @@ namespace PictureExifclone
                 catch (Exception ex)
                 {
                     MessageBox.Show($"Fehler beim Bearbeiten: {ex.Message}\n\nDetails: {ex.StackTrace}", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
+        private void SaveAllButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (!hasCoordinates)
+            {
+                var result = MessageBox.Show(
+                    "Sie haben keine GPS-Koordinaten ausgewählt. Möchten Sie die Bilder trotzdem speichern?",
+                    "Bestätigung", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+                if (result != MessageBoxResult.Yes)
+                    return;
+            }
+
+            int savedCount = 0;
+            int errorCount = 0;
+
+            foreach (var img in images)
+            {
+                try
+                {
+                    double? lat = hasCoordinates ? (double?)currentLatitude : img.Latitude;
+                    double? lon = hasCoordinates ? (double?)currentLongitude : img.Longitude;
+
+                    string oldPath = img.FilePath;
+                    string newPath = imageService.SaveSingleImage(img.FilePath, settings.OutputFolder, lat, lon);
+
+                    // Invalidiere Cache für alten Pfad
+                    imageService.InvalidateThumbnailCache(oldPath);
+                    
+                    img.FilePath = newPath;
+                    if (lat.HasValue && lon.HasValue)
+                    {
+                        img.Latitude = lat.Value;
+                        img.Longitude = lon.Value;
+                    }
+                    img.Thumbnail = imageService.CreateThumbnail(newPath);
+
+                    savedCount++;
+                }
+                catch (Exception)
+                {
+                    errorCount++;
+                }
+            }
+
+            UpdateAllMarkersOnMap();
+            MessageBox.Show($"{savedCount} Bild(er) erfolgreich gespeichert!\n{errorCount} Fehler.",
+                "Fertig", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        
+        private void SaveSingleImage_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button button && button.Tag is ImageItem imageItem)
+            {
+                try
+                {
+                    double? lat = imageItem.Latitude ?? (hasCoordinates ? (double?)currentLatitude : null);
+                    double? lon = imageItem.Longitude ?? (hasCoordinates ? (double?)currentLongitude : null);
+
+                    string oldPath = imageItem.FilePath;
+                    string newPath = imageService.SaveSingleImage(imageItem.FilePath, settings.OutputFolder, lat, lon);
+
+                    // Invalidiere Cache für alten Pfad
+                    imageService.InvalidateThumbnailCache(oldPath);
+                    
+                    imageItem.FilePath = newPath;
+                    if (lat.HasValue && lon.HasValue)
+                    {
+                        imageItem.Latitude = lat.Value;
+                        imageItem.Longitude = lon.Value;
+                    }
+                    imageItem.Thumbnail = imageService.CreateThumbnail(newPath);
+
+                    UpdateAllMarkersOnMap();
+                    MessageBox.Show($"Bild gespeichert:\n{newPath}", "Erfolg", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Fehler beim Speichern von {imageItem.FileName}: {ex.Message}",
+                        "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
         }
@@ -516,12 +593,17 @@ namespace PictureExifclone
             {
                 try
                 {
+                    string oldPath = selectedImage.FilePath;
+                    
                     string newPath = imageService.SaveSingleImage(
                         selectedImage.FilePath,
                         settings.OutputFolder,
                         currentLatitude,
                         currentLongitude);
 
+                    // Invalidiere Cache für alten Pfad
+                    imageService.InvalidateThumbnailCache(oldPath);
+                    
                     selectedImage.FilePath = newPath;
                     selectedImage.Latitude = currentLatitude;
                     selectedImage.Longitude = currentLongitude;
@@ -537,51 +619,6 @@ namespace PictureExifclone
                         "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
-        }
-
-        private void SaveAllButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (!hasCoordinates)
-            {
-                var result = MessageBox.Show(
-                    "Sie haben keine GPS-Koordinaten ausgewählt. Möchten Sie die Bilder trotzdem speichern?",
-                    "Bestätigung", MessageBoxButton.YesNo, MessageBoxImage.Question);
-
-                if (result != MessageBoxResult.Yes)
-                    return;
-            }
-
-            int savedCount = 0;
-            int errorCount = 0;
-
-            foreach (var img in images)
-            {
-                try
-                {
-                    double? lat = hasCoordinates ? (double?)currentLatitude : img.Latitude;
-                    double? lon = hasCoordinates ? (double?)currentLongitude : img.Longitude;
-
-                    string newPath = imageService.SaveSingleImage(img.FilePath, settings.OutputFolder, lat, lon);
-
-                    img.FilePath = newPath;
-                    if (lat.HasValue && lon.HasValue)
-                    {
-                        img.Latitude = lat.Value;
-                        img.Longitude = lon.Value;
-                    }
-                    img.Thumbnail = imageService.CreateThumbnail(newPath);
-
-                    savedCount++;
-                }
-                catch (Exception)
-                {
-                    errorCount++;
-                }
-            }
-
-            UpdateAllMarkersOnMap();
-            MessageBox.Show($"{savedCount} Bild(er) erfolgreich gespeichert!\n{errorCount} Fehler.",
-                "Fertig", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private void RemoveImage_Click(object sender, RoutedEventArgs e)
@@ -603,36 +640,6 @@ namespace PictureExifclone
                     images.Remove(imageItem);
                     UpdateAllMarkersOnMap();
                     UpdateButtonStates();
-                }
-            }
-        }
-
-        private void SaveSingleImage_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is Button button && button.Tag is ImageItem imageItem)
-            {
-                try
-                {
-                    double? lat = imageItem.Latitude ?? (hasCoordinates ? (double?)currentLatitude : null);
-                    double? lon = imageItem.Longitude ?? (hasCoordinates ? (double?)currentLongitude : null);
-
-                    string newPath = imageService.SaveSingleImage(imageItem.FilePath, settings.OutputFolder, lat, lon);
-
-                    imageItem.FilePath = newPath;
-                    if (lat.HasValue && lon.HasValue)
-                    {
-                        imageItem.Latitude = lat.Value;
-                        imageItem.Longitude = lon.Value;
-                    }
-                    imageItem.Thumbnail = imageService.CreateThumbnail(newPath);
-
-                    UpdateAllMarkersOnMap();
-                    MessageBox.Show($"Bild gespeichert:\n{newPath}", "Erfolg", MessageBoxButton.OK, MessageBoxImage.Information);
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Fehler beim Speichern von {imageItem.FileName}: {ex.Message}",
-                        "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
         }
