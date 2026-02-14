@@ -7,7 +7,7 @@
         WindowState="Maximized"
         Background="#FF2C2C2C">
     
-    <Grid>
+    <Grid x:Name="RootGrid">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
@@ -33,7 +33,16 @@
                     </StackPanel>
                 </GroupBox>
 
-                <Button x:Name="UndoButton" Content="? UNDO" Width="120" Height="35" Margin="5" Click="Undo_Click"
+                <GroupBox Header="Rotation" Foreground="White" Margin="5">
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="&#8634; 90" Width="60" Height="30" Click="RotateLeft_Click" Margin="2"
+                                ToolTip="90 Grad nach links drehen"/>
+                        <Button Content="&#8635; 90" Width="60" Height="30" Click="RotateRight_Click" Margin="2"
+                                ToolTip="90 Grad nach rechts drehen"/>
+                    </StackPanel>
+                </GroupBox>
+
+                <Button x:Name="UndoButton" Content="&#8630; UNDO" Width="120" Height="35" Margin="5" Click="Undo_Click"
                         Background="#FF4CAF50" Foreground="White" FontWeight="Bold" IsEnabled="False"/>
 
                 <Button Content="EXIF Daten anzeigen" Width="140" Height="35" Margin="5" Click="ShowExif_Click"
@@ -41,9 +50,9 @@
                 
                 <Separator Width="20" Background="Transparent"/>
                 
-                <Button Content="Speichern" Width="120" Height="40" Margin="5" Click="Save_Click"
+                <Button Content="&#10003; Speichern" Width="120" Height="40" Margin="5" Click="Save_Click"
                         Background="#FF28A745" Foreground="White" FontWeight="Bold" FontSize="16"/>
-                <Button Content="Abbrechen" Width="120" Height="40" Margin="5" Click="Cancel_Click"
+                <Button Content="&#10005; Abbrechen" Width="120" Height="40" Margin="5" Click="Cancel_Click"
                         Background="#FFDC3545" Foreground="White" FontWeight="Bold" FontSize="14"/>
             </StackPanel>
         </Border>
@@ -151,14 +160,17 @@
             <ScrollViewer x:Name="ImageScrollViewer" 
                           HorizontalScrollBarVisibility="Auto" 
                           VerticalScrollBarVisibility="Auto"
-                          HorizontalAlignment="Center"
-                          VerticalAlignment="Center"
+                          HorizontalAlignment="Stretch"
+                          VerticalAlignment="Stretch"
                           PreviewMouseWheel="ImageScrollViewer_PreviewMouseWheel">
+                <ScrollViewer.LayoutTransform>
+                    <ScaleTransform x:Name="ImageScaleTransform" ScaleX="1" ScaleY="1"/>
+                </ScrollViewer.LayoutTransform>
+                
                 <Grid x:Name="ImageContainer" 
-                      RenderTransformOrigin="0.5,0.5">
-                    <Grid.RenderTransform>
-                        <ScaleTransform x:Name="ImageScaleTransform" ScaleX="1" ScaleY="1"/>
-                    </Grid.RenderTransform>
+                      HorizontalAlignment="Center"
+                      VerticalAlignment="Center"
+                      ClipToBounds="True">
                     
                     <!-- Main Image -->
                     <Image x:Name="DisplayImage" 
@@ -172,7 +184,10 @@
                     <!-- Preview Canvas for Markers -->
                     <Canvas x:Name="PreviewCanvas" 
                             IsHitTestVisible="False"
-                            Panel.ZIndex="2">
+                            Panel.ZIndex="2"
+                            ClipToBounds="True"
+                            Width="{Binding ElementName=DisplayImage, Path=ActualWidth}"
+                            Height="{Binding ElementName=DisplayImage, Path=ActualHeight}">
                         <!-- Click Position Marker -->
                         <Ellipse x:Name="ClickMarker"
                                  Width="20" Height="20"
@@ -213,6 +228,10 @@
                             +/- Buttons = Stufen<LineBreak/>
                             Fit = An Fenster anpassen<LineBreak/>
                             <LineBreak/>
+                            <Run Text="ROTATION:" FontWeight="Bold"/><LineBreak/>
+                            &#8634; 90 = Links drehen<LineBreak/>
+                            &#8635; 90 = Rechts drehen<LineBreak/>
+                            <LineBreak/>
                             <Run Text="UNDO:" FontWeight="Bold"/><LineBreak/>
                             Macht letzte Aenderung rueckgaengig<LineBreak/>
                             Bis zu 10 Schritte moeglich<LineBreak/>
@@ -222,7 +241,12 @@
                             2. Einstellungen vornehmen<LineBreak/>
                             3. Auf Bild klicken/ziehen<LineBreak/>
                             4. Button zum Anwenden klicken<LineBreak/>
-                            5. Undo bei Bedarf
+                            5. Undo bei Bedarf<LineBreak/>
+                            <LineBreak/>
+                            <Run Text="WICHTIG:" FontWeight="Bold"/><LineBreak/>
+                            Koordinaten bleiben beim Zoom<LineBreak/>
+                            korrekt - einfach die gewuenschte<LineBreak/>
+                            Position anklicken!
                         </TextBlock>
                     </Border>
                 </StackPanel>
@@ -235,6 +259,15 @@
                 <TextBlock x:Name="StatusText" Foreground="White" FontSize="11" HorizontalAlignment="Left"/>
                 <TextBlock x:Name="PositionText" Foreground="#FFAAAAAA" FontSize="11" HorizontalAlignment="Right"/>
             </Grid>
+        </Border>
+
+        <!-- Busy Overlay -->
+        <Border x:Name="BusyOverlay" Grid.RowSpan="3" Grid.ColumnSpan="3"
+                Background="#80000000" Visibility="Collapsed" Panel.ZIndex="1000">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                <TextBlock Text="Bitte warten..." Foreground="White" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center"/>
+                <TextBlock Text="Verarbeitung läuft" Foreground="#FFDDDDDD" FontSize="12" Margin="0,8,0,0" HorizontalAlignment="Center"/>
+            </StackPanel>
         </Border>
     </Grid>
 </Window>

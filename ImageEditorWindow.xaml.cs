@@ -20,7 +20,11 @@ namespace PictureExifclone
     public partial class ImageEditorWindow : Window
     {
         private string originalFilePath;
-        private string workingFilePath;
+        private string currentTempFilePath;
+        private readonly string tempDirectory;
+        private readonly LinkedList<string> tempFileHistory = new LinkedList<string>();
+        private const int MAX_HISTORY_STEPS = 10;
+        
         private double? latitude;
         private double? longitude;
         private bool hasChanges = false;
@@ -33,13 +37,8 @@ namespace PictureExifclone
         private double imageOriginalWidth = 0;
         private double imageOriginalHeight = 0;
 
-        // Undo-System: Stack von Backup-Dateien
-        private Stack<string> undoStack = new Stack<string>();
-        private const int MAX_UNDO_STEPS = 10;
-
         public byte[]? EditedImageBytes { get; private set; }
         
-        // Für Scroll-Position-Wiederherstellung
         private double savedScrollOffsetX = 0;
         private double savedScrollOffsetY = 0;
         private bool restoreScrollPosition = false;
@@ -52,9 +51,14 @@ namespace PictureExifclone
             latitude = lat;
             longitude = lon;
 
+            // Erstelle dediziertes Temp-Verzeichnis für diese Sitzung
+            tempDirectory = Path.Combine(Path.GetTempPath(), $"imgedit_{Guid.NewGuid()}");
+            System.IO.Directory.CreateDirectory(tempDirectory);
+
             System.Diagnostics.Debug.WriteLine("=".PadRight(80, '='));
-            System.Diagnostics.Debug.WriteLine("BILDEDITOR START");
+            System.Diagnostics.Debug.WriteLine("BILDEDITOR START (Temp-Dateien-System)");
             System.Diagnostics.Debug.WriteLine("=".PadRight(80, '='));
+            System.Diagnostics.Debug.WriteLine($"[INIT] Temp-Verzeichnis: {tempDirectory}");
 
             if (!File.Exists(filePath))
             {
@@ -63,36 +67,18 @@ namespace PictureExifclone
 
             try
             {
-                workingFilePath = System.IO.Path.Combine(
-                    System.IO.Path.GetTempPath(), 
-                    $"edit_{Guid.NewGuid()}{System.IO.Path.GetExtension(filePath)}");
+                // Erstelle initiale Kopie (Version 0)
+                CreateInitialTempFile();
                 
                 System.Diagnostics.Debug.WriteLine($"[INIT] Original: {filePath}");
-                System.Diagnostics.Debug.WriteLine($"[INIT] Working:  {workingFilePath}");
-                
-                File.Copy(filePath, workingFilePath, true);
-                
-                if (!File.Exists(workingFilePath))
-                {
-                    throw new IOException("Temp-Datei konnte nicht erstellt werden");
-                }
-                
-                var fileInfo = new FileInfo(workingFilePath);
-                System.Diagnostics.Debug.WriteLine($"[INIT] Temp-Datei OK: {fileInfo.Length} bytes");
-                
-                // Prüfe Bildgröße VOR dem Laden
-                using (var testImg = SixLabors.ImageSharp.Image.Load(workingFilePath))
-                {
-                    System.Diagnostics.Debug.WriteLine($"[INIT] ImageSharp-Größe: {testImg.Width}x{testImg.Height}");
-                }
+                System.Diagnostics.Debug.WriteLine($"[INIT] Aktuelle Version: {currentTempFilePath}");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[ERROR] Fehler beim Erstellen der Temp-Datei: {ex.Message}");
-                throw new InvalidOperationException($"Fehler beim Erstellen der Arbeitsdatei: {ex.Message}", ex);
+                System.Diagnostics.Debug.WriteLine($"[ERROR] Fehler beim Initialisieren: {ex.Message}");
+                throw;
             }
 
-            SaveUndoState();
             LoadAndDisplayImage();
             
             ImageScrollViewer.PreviewMouseWheel += ImageScrollViewer_PreviewMouseWheel;
@@ -105,91 +91,133 @@ namespace PictureExifclone
             
             Closed += (s, e) =>
             {
-                try 
-                { 
-                    System.Diagnostics.Debug.WriteLine("[CLEANUP] Beginne Aufräumen...");
-                    
-                    if (File.Exists(workingFilePath)) 
-                    {
-                        File.Delete(workingFilePath);
-                        System.Diagnostics.Debug.WriteLine($"[CLEANUP] Temp-Datei gelöscht: {workingFilePath}");
-                    }
-                    
-                    foreach (var undoFile in undoStack)
-                    {
-                        if (File.Exists(undoFile)) 
-                        {
-                            File.Delete(undoFile);
-                            System.Diagnostics.Debug.WriteLine($"[CLEANUP] Undo-Datei gelöscht: {undoFile}");
-                        }
-                    }
-                    
-                    System.Diagnostics.Debug.WriteLine("[CLEANUP] Fertig");
-                    System.Diagnostics.Debug.WriteLine("=".PadRight(80, '='));
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[ERROR] Fehler beim Cleanup: {ex.Message}");
-                }
+                CleanupTempFiles();
             };
             
             UpdateUndoButton();
         }
 
-        private void SaveUndoState()
+        private void CreateInitialTempFile()
         {
             try
             {
-                string undoFile = System.IO.Path.Combine(
-                    System.IO.Path.GetTempPath(), 
-                    $"undo_{Guid.NewGuid()}{System.IO.Path.GetExtension(workingFilePath)}");
+                string ext = Path.GetExtension(originalFilePath);
+                currentTempFilePath = Path.Combine(tempDirectory, $"version_000{ext}");
                 
-                File.Copy(workingFilePath, undoFile, true);
-                undoStack.Push(undoFile);
-
-                while (undoStack.Count > MAX_UNDO_STEPS)
+                File.Copy(originalFilePath, currentTempFilePath, true);
+                tempFileHistory.AddLast(currentTempFilePath);
+                
+                using (var testImg = SixLabors.ImageSharp.Image.Load(currentTempFilePath))
                 {
-                    var oldFile = undoStack.First();
-                    var tempStack = new Stack<string>(undoStack.Reverse().Skip(1).Reverse());
-                    undoStack = tempStack;
-                    
-                    if (File.Exists(oldFile)) File.Delete(oldFile);
+                    System.Diagnostics.Debug.WriteLine($"[TEMP] Initiale Version erstellt: {Path.GetFileName(currentTempFilePath)} ({testImg.Width}x{testImg.Height})");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ERROR] Fehler beim Erstellen der initialen Temp-Datei: {ex.Message}");
+                throw new InvalidOperationException($"Fehler beim Erstellen der Arbeitsdatei: {ex.Message}", ex);
+            }
+        }
+
+        private void CreateNewTempVersion()
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(currentTempFilePath) || !File.Exists(currentTempFilePath))
+                    return;
+
+                string ext = Path.GetExtension(originalFilePath);
+                string newTempFile = Path.Combine(tempDirectory, $"version_{tempFileHistory.Count:000}{ext}");
+                
+                // Kopiere aktuelle Version zur neuen Version
+                File.Copy(currentTempFilePath, newTempFile, true);
+                
+                currentTempFilePath = newTempFile;
+                tempFileHistory.AddLast(newTempFile);
+
+                // Alte Versionen löschen wenn Limit erreicht
+                while (tempFileHistory.Count > MAX_HISTORY_STEPS)
+                {
+                    var oldest = tempFileHistory.First;
+                    if (oldest != null && oldest.Value != currentTempFilePath)
+                    {
+                        tempFileHistory.RemoveFirst();
+                        try
+                        {
+                            if (File.Exists(oldest.Value))
+                            {
+                                File.Delete(oldest.Value);
+                                System.Diagnostics.Debug.WriteLine($"[TEMP] Alte Version gelöscht: {Path.GetFileName(oldest.Value)}");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[ERROR] Fehler beim Löschen alter Version: {ex.Message}");
+                        }
+                    }
                 }
 
-                System.Diagnostics.Debug.WriteLine($"[UNDO] Backup erstellt, Stack-Größe: {undoStack.Count}");
+                System.Diagnostics.Debug.WriteLine($"[TEMP] Neue Version erstellt: {Path.GetFileName(newTempFile)} (Gesamt: {tempFileHistory.Count})");
                 UpdateUndoButton();
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[ERROR] Fehler beim Speichern des Undo-Status: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[ERROR] Fehler beim Erstellen neuer Version: {ex.Message}");
+            }
+        }
+
+        private void CleanupTempFiles()
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("[CLEANUP] Beginne Aufräumen...");
+
+                if (System.IO.Directory.Exists(tempDirectory))
+                {
+                    System.IO.Directory.Delete(tempDirectory, true);
+                    System.Diagnostics.Debug.WriteLine($"[CLEANUP] Temp-Verzeichnis gelöscht: {tempDirectory}");
+                }
+
+                System.Diagnostics.Debug.WriteLine("[CLEANUP] Fertig");
+                System.Diagnostics.Debug.WriteLine("=".PadRight(80, '='));
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ERROR] Fehler beim Aufräumen: {ex.Message}");
             }
         }
 
         private void Undo_Click(object sender, RoutedEventArgs e)
         {
-            if (undoStack.Count > 0)
+            if (tempFileHistory.Count <= 1) // Mindestens 2 Versionen nötig (current + previous)
+                return;
+
+            try
             {
-                try
+                // Aktuelle Version aus History entfernen (aber Datei behalten)
+                var current = tempFileHistory.Last;
+                if (current == null)
+                    return;
+
+                tempFileHistory.RemoveLast();
+
+                // Zur vorherigen Version wechseln
+                var previous = tempFileHistory.Last;
+                if (previous != null)
                 {
-                    var undoFile = undoStack.Pop();
-                    
-                    System.Diagnostics.Debug.WriteLine($"[UNDO] Stelle wieder her von: {undoFile}");
-                    
-                    if (File.Exists(undoFile))
-                    {
-                        File.Copy(undoFile, workingFilePath, true);
-                        File.Delete(undoFile);
-                    }
+                    currentTempFilePath = previous.Value;
+                    System.Diagnostics.Debug.WriteLine($"[UNDO] Wechsle zu vorheriger Version: {Path.GetFileName(currentTempFilePath)}");
+                    System.Diagnostics.Debug.WriteLine($"[UNDO] Verbleibende Versionen: {tempFileHistory.Count}");
 
                     LoadAndDisplayImage();
                     hasChanges = true;
                     StatusText.Text = "Letzte Änderung rückgängig gemacht";
                     UpdateUndoButton();
                 }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Fehler beim Rückgängig machen: {ex.Message}", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Fehler beim Rückgängig machen: {ex.Message}", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -197,8 +225,9 @@ namespace PictureExifclone
         {
             if (UndoButton != null)
             {
-                UndoButton.IsEnabled = undoStack.Count > 0;
-                UndoButton.Content = undoStack.Count > 0 ? $"? UNDO ({undoStack.Count})" : "? UNDO";
+                int canUndoSteps = tempFileHistory.Count - 1; // -1 weil current nicht gezählt wird
+                UndoButton.IsEnabled = canUndoSteps > 0;
+                UndoButton.Content = canUndoSteps > 0 ? $"? UNDO ({canUndoSteps})" : "? UNDO";
             }
         }
 
@@ -207,32 +236,30 @@ namespace PictureExifclone
             try
             {
                 System.Diagnostics.Debug.WriteLine("-".PadRight(80, '-'));
-                System.Diagnostics.Debug.WriteLine("[LOAD] Lade Bild...");
+                System.Diagnostics.Debug.WriteLine($"[LOAD] Lade Bild aus Version: {Path.GetFileName(currentTempFilePath)}");
                 
                 double previousZoom = currentZoom;
                 System.Diagnostics.Debug.WriteLine($"[LOAD] Vorheriger Zoom: {previousZoom:F2}");
                 
+                // WICHTIG: Source auf null setzen und GC forcieren um Cache zu leeren
                 DisplayImage.Source = null;
                 GC.Collect();
                 GC.WaitForPendingFinalizers();
+                GC.Collect();
                 
-                if (!File.Exists(workingFilePath))
+                if (!File.Exists(currentTempFilePath))
                 {
-                    throw new FileNotFoundException($"Arbeitsdatei nicht gefunden: {workingFilePath}");
+                    throw new FileNotFoundException($"Arbeitsdatei nicht gefunden: {currentTempFilePath}");
                 }
 
-                byte[] imageData = File.ReadAllBytes(workingFilePath);
+                // WICHTIG: Lade Bild-Daten komplett in Memory, um Cache-Probleme zu vermeiden
+                byte[] imageData = File.ReadAllBytes(currentTempFilePath);
                 System.Diagnostics.Debug.WriteLine($"[LOAD] Datei gelesen: {imageData.Length} bytes");
                 
-                if (imageData == null || imageData.Length == 0)
-                {
-                    throw new InvalidOperationException("Bilddaten sind leer");
-                }
-
-                var bitmap = new BitmapImage();
+                BitmapImage bitmap = new BitmapImage();
                 bitmap.BeginInit();
-                bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                bitmap.CreateOptions = BitmapCreateOptions.None;
+                bitmap.CacheOption = BitmapCacheOption.OnLoad; // Lade komplett in Memory
+                bitmap.CreateOptions = BitmapCreateOptions.None; // KEINE IgnoreImageCache (verursacht Fehler)
                 
                 using (var memoryStream = new MemoryStream(imageData))
                 {
@@ -241,14 +268,14 @@ namespace PictureExifclone
                     bitmap.EndInit();
                 }
                 
-                bitmap.Freeze();
+                bitmap.Freeze(); // Macht Bitmap thread-safe und verhindert weitere Änderungen
+                
+                System.Diagnostics.Debug.WriteLine($"[LOAD] Bitmap erstellt: {bitmap.PixelWidth}x{bitmap.PixelHeight}");
                 
                 DisplayImage.Source = bitmap;
                 
                 var newWidth = bitmap.PixelWidth;
                 var newHeight = bitmap.PixelHeight;
-                
-                System.Diagnostics.Debug.WriteLine($"[LOAD] BitmapImage: {newWidth}x{newHeight}");
                 
                 if (imageOriginalWidth > 0 && (newWidth != imageOriginalWidth || newHeight != imageOriginalHeight))
                 {
@@ -263,7 +290,7 @@ namespace PictureExifclone
                 imageOriginalWidth = newWidth;
                 imageOriginalHeight = newHeight;
 
-                ImageInfoText.Text = $"{System.IO.Path.GetFileName(originalFilePath)}\n{imageOriginalWidth} x {imageOriginalHeight} px";
+                ImageInfoText.Text = $"{Path.GetFileName(originalFilePath)}\n{imageOriginalWidth} x {imageOriginalHeight} px\nVersion: {tempFileHistory.Count}/{MAX_HISTORY_STEPS}";
                 GpsInfoText.Text = (latitude.HasValue && longitude.HasValue) 
                     ? $"Lat: {latitude.Value:F6}\nLon: {longitude.Value:F6}" 
                     : "Keine GPS-Daten";
@@ -278,7 +305,6 @@ namespace PictureExifclone
                     ZoomText.Text = $"{(int)(currentZoom * 100)}%";
                     System.Diagnostics.Debug.WriteLine($"[LOAD] Zoom wiederhergestellt: {currentZoom:F2}");
                     
-                    // WICHTIG: Stelle ABSOLUTE Scroll-Position wieder her
                     if (restoreScrollPosition)
                     {
                         Dispatcher.InvokeAsync(() =>
@@ -294,17 +320,28 @@ namespace PictureExifclone
                         CenterImage();
                     }
                 }
-                else if (!restoreScrollPosition)  // ? NUR Auto-Zoom wenn NICHT Scroll wiederhergestellt wird!
+                else if (!restoreScrollPosition)
                 {
                     System.Diagnostics.Debug.WriteLine("[LOAD] Initialer Load - berechne Auto-Zoom");
                     Dispatcher.InvokeAsync(() => 
                     {
                         if (ImageScrollViewer.ActualWidth > 0 && imageOriginalWidth > 0)
                         {
-                            var scaleX = (ImageScrollViewer.ActualWidth - 40) / imageOriginalWidth;
-                            var scaleY = (ImageScrollViewer.ActualHeight - 40) / imageOriginalHeight;
+                            // Berechne Zoom so, dass das GESAMTE Bild sichtbar ist (mit Padding)
+                            var availableWidth = ImageScrollViewer.ActualWidth - 40;  // 20px Padding links+rechts
+                            var availableHeight = ImageScrollViewer.ActualHeight - 40; // 20px Padding oben+unten
+                            
+                            var scaleX = availableWidth / imageOriginalWidth;
+                            var scaleY = availableHeight / imageOriginalHeight;
+                            
+                            // Wähle den KLEINEREN Zoom-Faktor, damit ALLES passt
                             currentZoom = Math.Max(0.1, Math.Min(Math.Min(scaleX, scaleY), 1.0));
-                            System.Diagnostics.Debug.WriteLine($"[LOAD] Auto-Zoom berechnet: {currentZoom:F2} (scaleX={scaleX:F2}, scaleY={scaleY:F2})");
+                            
+                            System.Diagnostics.Debug.WriteLine($"[LOAD] Auto-Zoom berechnet:");
+                            System.Diagnostics.Debug.WriteLine($"[LOAD]   Verfügbar: {availableWidth:F0}x{availableHeight:F0}");
+                            System.Diagnostics.Debug.WriteLine($"[LOAD]   Original: {imageOriginalWidth}x{imageOriginalHeight}");
+                            System.Diagnostics.Debug.WriteLine($"[LOAD]   scaleX={scaleX:F4}, scaleY={scaleY:F4}");
+                            System.Diagnostics.Debug.WriteLine($"[LOAD]   ? Zoom={currentZoom:F4} ({currentZoom*100:F1}%)");
                         }
                         else
                         {
@@ -324,7 +361,7 @@ namespace PictureExifclone
                     System.Diagnostics.Debug.WriteLine("[LOAD] Überspringe Auto-Zoom (Scroll-Wiederherstellung aktiv)");
                 }
                 
-                StatusText.Text = "Bild geladen - Bereit zum Bearbeiten";
+                StatusText.Text = $"Bild geladen - Version {tempFileHistory.Count} von {MAX_HISTORY_STEPS}";
                 System.Diagnostics.Debug.WriteLine("[LOAD] Erfolgreich geladen");
             }
             catch (Exception ex)
@@ -340,18 +377,22 @@ namespace PictureExifclone
         {
             if (imageOriginalWidth > 0 && DisplayImage.Source != null)
             {
-                DisplayImage.Width = imageOriginalWidth;
-                DisplayImage.Height = imageOriginalHeight;
+                // WICHTIG: Setze KEINE feste Größe für DisplayImage!
+                // Lasse WPF das Layout automatisch berechnen, um Clipping zu vermeiden
+                DisplayImage.Width = double.NaN;  // Auto
+                DisplayImage.Height = double.NaN; // Auto
                 
-                PreviewCanvas.Width = imageOriginalWidth;
-                PreviewCanvas.Height = imageOriginalHeight;
+                // AUCH Container auf Auto setzen, damit er sich dem Bild anpasst
+                ImageContainer.Width = double.NaN;  // Auto
+                ImageContainer.Height = double.NaN; // Auto
                 
-                ImageContainer.Width = imageOriginalWidth;
-                ImageContainer.Height = imageOriginalHeight;
+                // PreviewCanvas wird an DisplayImage.ActualWidth/Height gebunden (siehe XAML)
+                // Dadurch hat es immer die gleiche Größe wie das angezeigte Bild
                 
-                System.Diagnostics.Debug.WriteLine($"[DIMENSIONS] Bild={imageOriginalWidth}x{imageOriginalHeight}");
-                System.Diagnostics.Debug.WriteLine($"[DIMENSIONS] Preview={PreviewCanvas.Width}x{PreviewCanvas.Height}");
-                System.Diagnostics.Debug.WriteLine($"[DIMENSIONS] Container={ImageContainer.Width}x{ImageContainer.Height}");
+                System.Diagnostics.Debug.WriteLine($"[DIMENSIONS] Original-Bild={imageOriginalWidth}x{imageOriginalHeight}");
+                System.Diagnostics.Debug.WriteLine($"[DIMENSIONS] DisplayImage=Auto x Auto (kein Clipping!)");
+                System.Diagnostics.Debug.WriteLine($"[DIMENSIONS] Container=Auto x Auto (passt sich an!)");
+                System.Diagnostics.Debug.WriteLine($"[DIMENSIONS] PreviewCanvas wird an DisplayImage gebunden");
                 System.Diagnostics.Debug.WriteLine($"[DIMENSIONS] Zoom={currentZoom:F2}");
             }
         }
@@ -383,9 +424,21 @@ namespace PictureExifclone
         {
             if (ImageScrollViewer.ActualWidth > 0 && imageOriginalWidth > 0)
             {
-                var scaleX = (ImageScrollViewer.ActualWidth - 40) / imageOriginalWidth;
-                var scaleY = (ImageScrollViewer.ActualHeight - 40) / imageOriginalHeight;
+                // Berechne Zoom so, dass das GESAMTE Bild sichtbar ist
+                var availableWidth = ImageScrollViewer.ActualWidth - 40;
+                var availableHeight = ImageScrollViewer.ActualHeight - 40;
+                
+                var scaleX = availableWidth / imageOriginalWidth;
+                var scaleY = availableHeight / imageOriginalHeight;
+                
+                // Wähle den KLEINEREN Faktor, damit alles passt
                 currentZoom = Math.Max(0.1, Math.Min(Math.Min(scaleX, scaleY), 10.0));
+                
+                System.Diagnostics.Debug.WriteLine($"[ZOOM FIT] Verfügbar: {availableWidth:F0}x{availableHeight:F0}");
+                System.Diagnostics.Debug.WriteLine($"[ZOOM FIT] Original: {imageOriginalWidth}x{imageOriginalHeight}");
+                System.Diagnostics.Debug.WriteLine($"[ZOOM FIT] scaleX={scaleX:F4}, scaleY={scaleY:F4}");
+                System.Diagnostics.Debug.WriteLine($"[ZOOM FIT] ? Zoom={currentZoom:F4}");
+                
                 ApplyZoom();
                 CenterImage();
             }
@@ -416,16 +469,22 @@ namespace PictureExifclone
         {
             if (e.LeftButton != MouseButtonState.Pressed) return;
 
-            // GetPosition gibt Position relativ zum Image-Element
             var displayPosition = e.GetPosition(DisplayImage);
             
-            // WICHTIG: DisplayImage.Width ist die LOGISCHE Größe (= imageOriginalWidth)
-            // GetPosition gibt Koordinaten relativ zu dieser logischen Größe
-            // Daher brauchen wir KEINE Transformation - die Koordinaten sind bereits korrekt!
+            // Berechne die Position im Original-Bild
+            // DisplayImage.ActualWidth/Height ist die tatsächlich gerenderte Größe
+            // imageOriginalWidth/Height ist die Pixel-Größe des Bildes
+            
+            // Wichtig: Wenn DisplayImage.ActualWidth/Height 0 oder ungültig sind, verwende imageOriginalWidth/Height
+            double actualWidth = DisplayImage.ActualWidth > 0 ? DisplayImage.ActualWidth : imageOriginalWidth;
+            double actualHeight = DisplayImage.ActualHeight > 0 ? DisplayImage.ActualHeight : imageOriginalHeight;
+            
+            double scaleX = imageOriginalWidth / actualWidth;
+            double scaleY = imageOriginalHeight / actualHeight;
             
             var imagePosition = new System.Windows.Point(
-                displayPosition.X,
-                displayPosition.Y
+                displayPosition.X * scaleX,
+                displayPosition.Y * scaleY
             );
             
             // Begrenze auf Bildgrenzen
@@ -435,19 +494,20 @@ namespace PictureExifclone
             startPoint = imagePosition;
             clickPoint = imagePosition;
             
-            System.Diagnostics.Debug.WriteLine($"[MOUSE] Display-Position (roh): ({displayPosition.X:F1}, {displayPosition.Y:F1})");
-            System.Diagnostics.Debug.WriteLine($"[MOUSE] Image.Width: {DisplayImage.Width}, Image.Height: {DisplayImage.Height}");
-            System.Diagnostics.Debug.WriteLine($"[MOUSE] Image.ActualWidth: {DisplayImage.ActualWidth:F1}, Image.ActualHeight: {DisplayImage.ActualHeight:F1}");
-            System.Diagnostics.Debug.WriteLine($"[MOUSE] ? Bild-Position: ({imagePosition.X:F1}, {imagePosition.Y:F1})");
+            System.Diagnostics.Debug.WriteLine($"[MOUSE] Display-Position: ({displayPosition.X:F1}, {displayPosition.Y:F1})");
+            System.Diagnostics.Debug.WriteLine($"[MOUSE] Display.ActualSize: {actualWidth:F1}x{actualHeight:F1}");
+            System.Diagnostics.Debug.WriteLine($"[MOUSE] Scale: {scaleX:F4}x{scaleY:F4}");
+            System.Diagnostics.Debug.WriteLine($"[MOUSE] ? Pixel-Position: ({imagePosition.X:F1}, {imagePosition.Y:F1})");
             System.Diagnostics.Debug.WriteLine($"[MOUSE] Original-Größe: {imageOriginalWidth}x{imageOriginalHeight}");
-            System.Diagnostics.Debug.WriteLine($"[MOUSE] Zoom: {currentZoom:F2}");
 
             if (ModePixelate.IsChecked == true || ModeCrop.IsChecked == true)
             {
                 isSelecting = true;
                 SelectionRect.Visibility = Visibility.Visible;
-                Canvas.SetLeft(SelectionRect, startPoint.X);
-                Canvas.SetTop(SelectionRect, startPoint.Y);
+                
+                // Setze Rechteck auf DISPLAY-Koordinaten (nicht Pixel!)
+                Canvas.SetLeft(SelectionRect, displayPosition.X);
+                Canvas.SetTop(SelectionRect, displayPosition.Y);
                 SelectionRect.Width = 0;
                 SelectionRect.Height = 0;
                 
@@ -457,38 +517,48 @@ namespace PictureExifclone
             }
             else
             {
-                // Zeige Marker an geklickter Position
                 ClickMarker.Visibility = Visibility.Visible;
-                Canvas.SetLeft(ClickMarker, imagePosition.X - 10);
-                Canvas.SetTop(ClickMarker, imagePosition.Y - 10);
                 
-                System.Diagnostics.Debug.WriteLine($"[MOUSE] Marker platziert bei Canvas: ({imagePosition.X - 10:F1}, {imagePosition.Y - 10:F1})");
+                // Marker-Position: Display-Koordinaten (Canvas ist an DisplayImage gebunden)
+                Canvas.SetLeft(ClickMarker, displayPosition.X - 10);
+                Canvas.SetTop(ClickMarker, displayPosition.Y - 10);
+                
+                System.Diagnostics.Debug.WriteLine($"[MOUSE] Marker bei Display-Pos: ({displayPosition.X:F1}, {displayPosition.Y:F1})");
                 
                 StatusText.Text = ModeText.IsChecked == true 
                     ? "Position gewaehlt - Klicken Sie 'TEXT EINFUEGEN'" 
-                    : "Position gewaehlt - Klicken Sie 'GEO-DATEN EINFUEGEN'";
+                    : "Position gewaehlt - Klicken Sie 'GEO-DATEN EINFUEGEN'.";
             }
         }
 
         private void Canvas_MouseMove(object sender, MouseEventArgs e)
         {
-            // Nur für Rechteck-Auswahl bei Verpixeln/Crop
             if (!isSelecting || e.LeftButton != MouseButtonState.Pressed) return;
             
             var displayPosition = e.GetPosition(DisplayImage);
             
-            // Keine Transformation nötig - GetPosition gibt bereits Bild-Koordinaten
+            double actualWidth = DisplayImage.ActualWidth > 0 ? DisplayImage.ActualWidth : imageOriginalWidth;
+            double actualHeight = DisplayImage.ActualHeight > 0 ? DisplayImage.ActualHeight : imageOriginalHeight;
+            
+            double scaleX = imageOriginalWidth / actualWidth;
+            double scaleY = imageOriginalHeight / actualHeight;
+            
             var imagePosition = new System.Windows.Point(
-                displayPosition.X,
-                displayPosition.Y
+                displayPosition.X * scaleX,
+                displayPosition.Y * scaleY
             );
             
-            var x = Math.Min(startPoint.X, imagePosition.X);
-            var y = Math.Min(startPoint.Y, imagePosition.Y);
+            // Berechne Display-Koordinaten für das Rechteck
+            var startDisplayX = startPoint.X / scaleX;
+            var startDisplayY = startPoint.Y / scaleY;
+            
+            var x = Math.Min(startDisplayX, displayPosition.X);
+            var y = Math.Min(startDisplayY, displayPosition.Y);
+            
             Canvas.SetLeft(SelectionRect, x);
             Canvas.SetTop(SelectionRect, y);
-            SelectionRect.Width = Math.Abs(imagePosition.X - startPoint.X);
-            SelectionRect.Height = Math.Abs(imagePosition.Y - startPoint.Y);
+            SelectionRect.Width = Math.Abs(displayPosition.X - startDisplayX);
+            SelectionRect.Height = Math.Abs(displayPosition.Y - startDisplayY);
             
             PositionText.Text = $"Position: {(int)imagePosition.X}, {(int)imagePosition.Y}";
         }
@@ -498,11 +568,9 @@ namespace PictureExifclone
             isSelecting = false;
             if (SelectionRect.Visibility == Visibility.Visible && SelectionRect.Width > 10)
             {
-                System.Diagnostics.Debug.WriteLine($"[MOUSE] Rechteck fertig: ({Canvas.GetLeft(SelectionRect):F0}, {Canvas.GetTop(SelectionRect):F0}, {SelectionRect.Width:F0}, {SelectionRect.Height:F0})");
-                
                 StatusText.Text = ModeCrop.IsChecked == true 
                     ? "Rechteck fertig - Klicken Sie 'BILD ZUSCHNEIDEN'" 
-                    : "Rechteck fertig - Klicken Sie 'BEREICH VERPIXELN'";
+                    : "Rechteck fertig - Klicken Sie 'BEREICH VERPIXELN'.";
             }
         }
 
@@ -523,30 +591,22 @@ namespace PictureExifclone
             {
                 System.Diagnostics.Debug.WriteLine("=".PadRight(80, '='));
                 System.Diagnostics.Debug.WriteLine("[TEXT] Beginne Text-Einfügung");
-                System.Diagnostics.Debug.WriteLine($"[TEXT] Canvas-Click: ({clickPoint.Value.X:F1}, {clickPoint.Value.Y:F1})");
-                System.Diagnostics.Debug.WriteLine($"[TEXT] Bild vor Bearbeitung: {imageOriginalWidth}x{imageOriginalHeight}");
                 
-                // Speichere die ABSOLUTE Scroll-Position RELATIV zum geklickten Punkt
-                // So dass der geklickte Bereich nach Reload sichtbar bleibt
                 savedScrollOffsetX = ImageScrollViewer.HorizontalOffset;
                 savedScrollOffsetY = ImageScrollViewer.VerticalOffset;
                 restoreScrollPosition = true;
                 
-                System.Diagnostics.Debug.WriteLine($"[TEXT] Speichere Scroll-Position: X={savedScrollOffsetX:F1}, Y={savedScrollOffsetY:F1}");
-                
-                SaveUndoState();
+                // Erstelle neue Version VOR der Bearbeitung
+                CreateNewTempVersion();
 
                 var imageX = clickPoint.Value.X;
                 var imageY = clickPoint.Value.Y;
 
-                System.Diagnostics.Debug.WriteLine($"[TEXT] Ziel-Position im Bild: ({imageX:F1}, {imageY:F1})");
-                System.Diagnostics.Debug.WriteLine($"[TEXT] Text: '{TextInput.Text}'");
-                System.Diagnostics.Debug.WriteLine($"[TEXT] Schriftgröße: {FontSizeSlider.Value}");
+                System.Diagnostics.Debug.WriteLine($"[TEXT] Bearbeite Version: {Path.GetFileName(currentTempFilePath)}");
+                System.Diagnostics.Debug.WriteLine($"[TEXT] Position: ({imageX:F1}, {imageY:F1})");
 
-                using (var img = SixLabors.ImageSharp.Image.Load<Rgba32>(workingFilePath))
+                using (var img = SixLabors.ImageSharp.Image.Load<Rgba32>(currentTempFilePath))
                 {
-                    System.Diagnostics.Debug.WriteLine($"[TEXT] ImageSharp geladen: {img.Width}x{img.Height}");
-                    
                     var family = SixLabors.Fonts.SystemFonts.Collection.Families.FirstOrDefault();
                     if (family == null)
                     {
@@ -558,9 +618,6 @@ namespace PictureExifclone
                     var color = TextColorPicker.SelectedColor;
                     var imgColor = SixLabors.ImageSharp.Color.FromRgba(color.R, color.G, color.B, color.A);
 
-                    System.Diagnostics.Debug.WriteLine($"[TEXT] Font: {family.Name}, Größe: {FontSizeSlider.Value}");
-                    System.Diagnostics.Debug.WriteLine($"[TEXT] Farbe: R={color.R}, G={color.G}, B={color.B}, A={color.A}");
-
                     img.Mutate(x =>
                     {
                         x.DrawText(TextInput.Text, font, SixLabors.ImageSharp.Color.Black, 
@@ -569,27 +626,12 @@ namespace PictureExifclone
                             new SixLabors.ImageSharp.PointF((float)imageX, (float)imageY));
                     });
 
-                    System.Diagnostics.Debug.WriteLine($"[TEXT] Nach Mutation: {img.Width}x{img.Height}");
-
                     var encoder = new JpegEncoder { Quality = 95 };
-                    img.Save(workingFilePath, encoder);
-                    
-                    System.Diagnostics.Debug.WriteLine($"[TEXT] Gespeichert mit Quality=95");
-                }
-
-                // Prüfe gespeicherte Datei
-                var savedFileInfo = new FileInfo(workingFilePath);
-                System.Diagnostics.Debug.WriteLine($"[TEXT] Gespeicherte Datei: {savedFileInfo.Length} bytes");
-                
-                using (var testImg = SixLabors.ImageSharp.Image.Load(workingFilePath))
-                {
-                    System.Diagnostics.Debug.WriteLine($"[TEXT] Gespeicherte Bildgröße: {testImg.Width}x{testImg.Height}");
+                    img.Save(currentTempFilePath, encoder);
                 }
 
                 hasChanges = true;
                 ClearMarkers();
-                
-                System.Diagnostics.Debug.WriteLine("[TEXT] Lade Bild neu...");
                 LoadAndDisplayImage();
                 
                 StatusText.Text = "Text eingefuegt!";
@@ -598,8 +640,7 @@ namespace PictureExifclone
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[ERROR] Fehler in ApplyText: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"[ERROR] StackTrace: {ex.StackTrace}");
+                System.Diagnostics.Debug.WriteLine($"[ERROR] {ex.Message}");
                 MessageBox.Show($"Fehler beim Hinzufuegen des Textes: {ex.Message}", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -621,19 +662,14 @@ namespace PictureExifclone
             {
                 System.Diagnostics.Debug.WriteLine("=".PadRight(80, '='));
                 System.Diagnostics.Debug.WriteLine("[GEO] Beginne Geo-Daten-Einfügung");
-                System.Diagnostics.Debug.WriteLine($"[GEO] Canvas-Click: ({clickPoint.Value.X:F1}, {clickPoint.Value.Y:F1})");
                 
-                SaveUndoState();
+                CreateNewTempVersion();
 
                 var imageX = clickPoint.Value.X;
                 var imageY = clickPoint.Value.Y;
 
-                System.Diagnostics.Debug.WriteLine($"[GEO] Ziel-Position: ({imageX:F1}, {imageY:F1})");
-
-                using (var img = SixLabors.ImageSharp.Image.Load<Rgba32>(workingFilePath))
+                using (var img = SixLabors.ImageSharp.Image.Load<Rgba32>(currentTempFilePath))
                 {
-                    System.Diagnostics.Debug.WriteLine($"[GEO] Bild geladen: {img.Width}x{img.Height}");
-                    
                     var text = $"Lat: {latitude.Value:F6}  Lon: {longitude.Value:F6}";
                     var family = SixLabors.Fonts.SystemFonts.Collection.Families.FirstOrDefault();
                     if (family == null)
@@ -655,9 +691,7 @@ namespace PictureExifclone
                     });
 
                     var encoder = new JpegEncoder { Quality = 95 };
-                    img.Save(workingFilePath, encoder);
-                    
-                    System.Diagnostics.Debug.WriteLine($"[GEO] Nach Speichern: {img.Width}x{img.Height}");
+                    img.Save(currentTempFilePath, encoder);
                 }
 
                 hasChanges = true;
@@ -669,8 +703,7 @@ namespace PictureExifclone
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[ERROR] Fehler in ApplyGeo: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"[ERROR] StackTrace: {ex.StackTrace}");
+                System.Diagnostics.Debug.WriteLine($"[ERROR] {ex.Message}");
                 MessageBox.Show($"Fehler beim Hinzufuegen der Geo-Daten: {ex.Message}", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -688,30 +721,36 @@ namespace PictureExifclone
                 System.Diagnostics.Debug.WriteLine("=".PadRight(80, '='));
                 System.Diagnostics.Debug.WriteLine("[PIXELATE] Beginne Verpixelung");
                 
-                SaveUndoState();
+                CreateNewTempVersion();
 
-                var canvasX = Canvas.GetLeft(SelectionRect);
-                var canvasY = Canvas.GetTop(SelectionRect);
-                var canvasWidth = SelectionRect.Width;
-                var canvasHeight = SelectionRect.Height;
+                // Display-Koordinaten vom Canvas
+                var displayX = Canvas.GetLeft(SelectionRect);
+                var displayY = Canvas.GetTop(SelectionRect);
+                var displayWidth = SelectionRect.Width;
+                var displayHeight = SelectionRect.Height;
 
-                System.Diagnostics.Debug.WriteLine($"[PIXELATE] Canvas-Rechteck: ({canvasX:F0}, {canvasY:F0}, {canvasWidth:F0}, {canvasHeight:F0})");
-                System.Diagnostics.Debug.WriteLine($"[PIXELATE] Pixel-Größe: {PixelSizeSlider.Value}");
+                // Konvertiere zu Pixel-Koordinaten
+                double actualWidth = DisplayImage.ActualWidth > 0 ? DisplayImage.ActualWidth : imageOriginalWidth;
+                double actualHeight = DisplayImage.ActualHeight > 0 ? DisplayImage.ActualHeight : imageOriginalHeight;
+                double scaleX = imageOriginalWidth / actualWidth;
+                double scaleY = imageOriginalHeight / actualHeight;
+                
+                var pixelX = (int)(displayX * scaleX);
+                var pixelY = (int)(displayY * scaleY);
+                var pixelWidth = (int)(displayWidth * scaleX);
+                var pixelHeight = (int)(displayHeight * scaleY);
 
-                using (var img = SixLabors.ImageSharp.Image.Load<Rgba32>(workingFilePath))
+                System.Diagnostics.Debug.WriteLine($"[PIXELATE] Display-Rechteck: ({displayX:F0}, {displayY:F0}, {displayWidth:F0}x{displayHeight:F0})");
+                System.Diagnostics.Debug.WriteLine($"[PIXELATE] Pixel-Rechteck: ({pixelX}, {pixelY}, {pixelWidth}x{pixelHeight})");
+
+                using (var img = SixLabors.ImageSharp.Image.Load<Rgba32>(currentTempFilePath))
                 {
-                    System.Diagnostics.Debug.WriteLine($"[PIXELATE] Bild geladen: {img.Width}x{img.Height}");
-                    
-                    var rect = new SixLabors.ImageSharp.Rectangle(
-                        (int)canvasX, (int)canvasY,
-                        (int)canvasWidth, (int)canvasHeight);
+                    var rect = new SixLabors.ImageSharp.Rectangle(pixelX, pixelY, pixelWidth, pixelHeight);
 
                     rect.X = Math.Max(0, Math.Min(rect.X, img.Width));
                     rect.Y = Math.Max(0, Math.Min(rect.Y, img.Height));
                     rect.Width = Math.Min(rect.Width, img.Width - rect.X);
                     rect.Height = Math.Min(rect.Height, img.Height - rect.Y);
-
-                    System.Diagnostics.Debug.WriteLine($"[PIXELATE] Korrigiertes Rechteck: ({rect.X}, {rect.Y}, {rect.Width}, {rect.Height})");
 
                     if (rect.Width > 0 && rect.Height > 0)
                     {
@@ -723,9 +762,7 @@ namespace PictureExifclone
                     }
 
                     var encoder = new JpegEncoder { Quality = 95 };
-                    img.Save(workingFilePath, encoder);
-                    
-                    System.Diagnostics.Debug.WriteLine($"[PIXELATE] Nach Speichern: {img.Width}x{img.Height}");
+                    img.Save(currentTempFilePath, encoder);
                 }
 
                 hasChanges = true;
@@ -737,8 +774,7 @@ namespace PictureExifclone
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[ERROR] Fehler in ApplyPixelate: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"[ERROR] StackTrace: {ex.StackTrace}");
+                System.Diagnostics.Debug.WriteLine($"[ERROR] {ex.Message}");
                 MessageBox.Show($"Fehler beim Verpixeln: {ex.Message}", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -764,29 +800,38 @@ namespace PictureExifclone
                 System.Diagnostics.Debug.WriteLine("=".PadRight(80, '='));
                 System.Diagnostics.Debug.WriteLine("[CROP] Beginne Zuschneiden");
                 
-                SaveUndoState();
+                CreateNewTempVersion();
 
-                var canvasX = Canvas.GetLeft(SelectionRect);
-                var canvasY = Canvas.GetTop(SelectionRect);
-                var canvasWidth = SelectionRect.Width;
-                var canvasHeight = SelectionRect.Height;
+                // Display-Koordinaten vom Canvas
+                var displayX = Canvas.GetLeft(SelectionRect);
+                var displayY = Canvas.GetTop(SelectionRect);
+                var displayWidth = SelectionRect.Width;
+                var displayHeight = SelectionRect.Height;
 
-                System.Diagnostics.Debug.WriteLine($"[CROP] Canvas-Rechteck: ({canvasX:F0}, {canvasY:F0}, {canvasWidth:F0}, {canvasHeight:F0})");
+                // Konvertiere zu Pixel-Koordinaten
+                double actualWidth = DisplayImage.ActualWidth > 0 ? DisplayImage.ActualWidth : imageOriginalWidth;
+                double actualHeight = DisplayImage.ActualHeight > 0 ? DisplayImage.ActualHeight : imageOriginalHeight;
+                double scaleX = imageOriginalWidth / actualWidth;
+                double scaleY = imageOriginalHeight / actualHeight;
+                
+                var pixelX = (int)(displayX * scaleX);
+                var pixelY = (int)(displayY * scaleY);
+                var pixelWidth = (int)(displayWidth * scaleX);
+                var pixelHeight = (int)(displayHeight * scaleY);
 
-                using (var img = SixLabors.ImageSharp.Image.Load<Rgba32>(workingFilePath))
+                System.Diagnostics.Debug.WriteLine($"[CROP] Display-Rechteck: ({displayX:F0}, {displayY:F0}, {displayWidth:F0}x{displayHeight:F0})");
+                System.Diagnostics.Debug.WriteLine($"[CROP] Pixel-Rechteck: ({pixelX}, {pixelY}, {pixelWidth}x{pixelHeight})");
+
+                using (var img = SixLabors.ImageSharp.Image.Load<Rgba32>(currentTempFilePath))
                 {
                     System.Diagnostics.Debug.WriteLine($"[CROP] Bild VOR Crop: {img.Width}x{img.Height}");
                     
-                    var rect = new SixLabors.ImageSharp.Rectangle(
-                        (int)canvasX, (int)canvasY,
-                        (int)canvasWidth, (int)canvasHeight);
+                    var rect = new SixLabors.ImageSharp.Rectangle(pixelX, pixelY, pixelWidth, pixelHeight);
 
                     rect.X = Math.Max(0, Math.Min(rect.X, img.Width));
                     rect.Y = Math.Max(0, Math.Min(rect.Y, img.Height));
                     rect.Width = Math.Min(rect.Width, img.Width - rect.X);
                     rect.Height = Math.Min(rect.Height, img.Height - rect.Y);
-
-                    System.Diagnostics.Debug.WriteLine($"[CROP] Korrigiertes Rechteck: ({rect.X}, {rect.Y}, {rect.Width}, {rect.Height})");
 
                     if (rect.Width > 0 && rect.Height > 0)
                     {
@@ -795,7 +840,7 @@ namespace PictureExifclone
                     }
 
                     var encoder = new JpegEncoder { Quality = 95 };
-                    img.Save(workingFilePath, encoder);
+                    img.Save(currentTempFilePath, encoder);
                 }
 
                 hasChanges = true;
@@ -807,9 +852,64 @@ namespace PictureExifclone
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[ERROR] Fehler in ApplyCrop: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"[ERROR] StackTrace: {ex.StackTrace}");
+                System.Diagnostics.Debug.WriteLine($"[ERROR] {ex.Message}");
                 MessageBox.Show($"Fehler beim Zuschneiden: {ex.Message}", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void RotateLeft_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("=".PadRight(80, '='));
+                System.Diagnostics.Debug.WriteLine("[ROTATE] Rotation nach links");
+                
+                CreateNewTempVersion();
+
+                using (var img = SixLabors.ImageSharp.Image.Load<Rgba32>(currentTempFilePath))
+                {
+                    img.Mutate(x => x.Rotate(RotateMode.Rotate270));
+                    var encoder = new JpegEncoder { Quality = 95 };
+                    img.Save(currentTempFilePath, encoder);
+                }
+
+                hasChanges = true;
+                LoadAndDisplayImage();
+                StatusText.Text = "Bild um 90° nach links gedreht";
+                System.Diagnostics.Debug.WriteLine("[ROTATE] Fertig!");
+                System.Diagnostics.Debug.WriteLine("=".PadRight(80, '='));
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Fehler beim Drehen: {ex.Message}", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void RotateRight_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("=".PadRight(80, '='));
+                System.Diagnostics.Debug.WriteLine("[ROTATE] Rotation nach rechts");
+                
+                CreateNewTempVersion();
+
+                using (var img = SixLabors.ImageSharp.Image.Load<Rgba32>(currentTempFilePath))
+                {
+                    img.Mutate(x => x.Rotate(RotateMode.Rotate90));
+                    var encoder = new JpegEncoder { Quality = 95 };
+                    img.Save(currentTempFilePath, encoder);
+                }
+
+                hasChanges = true;
+                LoadAndDisplayImage();
+                StatusText.Text = "Bild um 90° nach rechts gedreht";
+                System.Diagnostics.Debug.WriteLine("[ROTATE] Fertig!");
+                System.Diagnostics.Debug.WriteLine("=".PadRight(80, '='));
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Fehler beim Drehen: {ex.Message}", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -858,7 +958,7 @@ namespace PictureExifclone
         {
             try
             {
-                EditedImageBytes = File.ReadAllBytes(workingFilePath);
+                EditedImageBytes = File.ReadAllBytes(currentTempFilePath);
                 DialogResult = true;
                 Close();
             }
