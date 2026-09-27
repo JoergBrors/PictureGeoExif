@@ -37,6 +37,8 @@ namespace PictureExifclone
                 settings.OutputFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PictureExifclone_Output");
             }
             OutputFolderTextBox.Text = settings.OutputFolder;
+            RouteGapSlider.Value = Math.Clamp(settings.RouteMaxGapMeters, RouteGapSlider.Minimum, RouteGapSlider.Maximum);
+            SortByRouteCheckBox.IsChecked = settings.SortImagesByRoute;
             
             images.CollectionChanged += (s, e) => UpdateImageCount();
             
@@ -102,17 +104,30 @@ namespace PictureExifclone
                     case "ready":
                         mapReady=true;
                         await RunMapScriptAsync("configure(" + System.Text.Json.JsonSerializer.Serialize(new { url=settings.TileUrl, attribution=settings.TileAttribution, attributionUrl=settings.TileAttributionUrl }) + ");");
-                        UpdateAllMarkersOnMap(); UpdateMapGrid(); break;
+                        ApplyLayerVisibility(); RebuildRoutes(fit: true); UpdateMapGrid(); break;
                     case "status": MapStatusText.Text=data.GetProperty("text").GetString(); break;
                     case "select":
                         int index=data.GetProperty("id").GetInt32();
                         if(index<0 || index>=images.Count) return;
                         SelectImage(images[index]); break;
+                    case "hover":
+                        int hover=data.GetProperty("id").GetInt32();
+                        MapInfoText.Text = hover>=0 && hover<images.Count ? Describe(images[hover]) : SelectionInfo();
+                        break;
+                    case "routeHover":
+                        int number=data.GetProperty("number").GetInt32();
+                        var route=routes.FirstOrDefault(r=>r.Number==number);
+                        MapInfoText.Text = route != null
+                            ? string.Create(CultureInfo.InvariantCulture, $"Trasse {route.Number}: {route.Points.Count} Bild(er), ca. {route.LengthMeters:F0} m, Richtung {(route.NorthSouth ? "Süd → Nord" : "West → Ost")}")
+                            : SelectionInfo();
+                        break;
                     case "coordinates":
                         double lat=data.GetProperty("lat").GetDouble(), lon=data.GetProperty("lng").GetDouble();
                         if(!PixelGeometry.ValidGps(lat,lon)) return;
                         currentLatitude=lat; currentLongitude=lon; hasCoordinates=true;
-                        CurrentGpsText.Text=$"Lat: {lat:F6}, Lng: {lon:F6}"; UpdateButtonStates(); break;
+                        CurrentGpsText.Text=$"Lat: {lat:F6}, Lng: {lon:F6}";
+                        MapInfoText.Text=string.Create(CultureInfo.InvariantCulture, $"Neuer GPS-Punkt: {lat:F6}, {lon:F6} – mit „GPS auf ausgewähltes Bild anwenden“ übernehmen");
+                        UpdateButtonStates(); break;
                 }
             }
             catch (Exception ex) { MapStatusText.Text="Ungültige Kartennachricht: " + ex.Message; }
@@ -133,19 +148,103 @@ namespace PictureExifclone
             if(hasCoordinates) { currentLatitude=item.Latitude!.Value; currentLongitude=item.Longitude!.Value; CurrentGpsText.Text=$"Lat: {currentLatitude:F6}, Lng: {currentLongitude:F6}"; }
             else CurrentGpsText.Text="Keine Koordinaten ausgewählt";
             _ = RunMapScriptAsync(hasCoordinates
-                ? $"setSelectedMarker({Js(currentLatitude)},{Js(currentLongitude)},{System.Text.Json.JsonSerializer.Serialize(item.FileName)});"
+                ? $"setSelectedMarker({Js(currentLatitude)},{Js(currentLongitude)},true);"
                 : "clearSelectedMarker();");
+            MapInfoText.Text = Describe(item);
             UpdateButtonStates();
             if(ImageItemsControl.ItemContainerGenerator.ContainerFromItem(item) is FrameworkElement element) element.BringIntoView();
         }
 
         private static string Js(double value) => value.ToString("R", CultureInfo.InvariantCulture);
 
-        private void UpdateAllMarkersOnMap()
+        private IReadOnlyList<Route> routes = [];
+
+        private static string Describe(ImageItem item) =>
+            item.FileName + (item.RouteNumber > 0 ? " · " + item.RouteInfo : "") +
+            (item.HasGpsData ? string.Create(CultureInfo.InvariantCulture, $" · {item.Latitude:F6}, {item.Longitude:F6}") : " · keine GPS-Daten");
+
+        private string SelectionInfo() => selectedImage != null ? Describe(selectedImage)
+            : routes.Count > 0 ? $"{routes.Count} Trasse(n) · {routes.Sum(r => r.Points.Count)} Bild(er) mit GPS" : "Kein Bild ausgewählt";
+
+        /// <summary>
+        /// Rebuilds the virtual routes from all GPS positions, numbers the images along them and
+        /// (optionally) reorders the image list to follow the routes. Must run after every GPS or list change,
+        /// because map markers address images by their list index.
+        /// </summary>
+        private void RebuildRoutes(bool fit = false)
         {
-            var data=images.Select((img,index)=>new { id=index, lat=img.Latitude, lng=img.Longitude, name=img.FileName })
+            var points = images.Select((img, i) => (img, i)).Where(x => x.img.HasGpsData)
+                .Select(x => new RoutePoint(x.i, x.img.Latitude!.Value, x.img.Longitude!.Value)).ToList();
+            routes = RouteBuilder.Build(points, RouteGapSlider.Value);
+
+            var position = new Dictionary<ImageItem, (int Route, int Index)>();
+            foreach (var route in routes)
+                for (int k = 0; k < route.Points.Count; k++) position[images[route.Points[k].Id]] = (route.Number, k + 1);
+            foreach (var img in images)
+            {
+                var (route, index) = position.TryGetValue(img, out var p) ? p : (0, 0);
+                img.SetRoute(route, index);
+            }
+
+            if (SortByRouteCheckBox.IsChecked == true)
+            {
+                // Stable: images without GPS keep their relative order at the end.
+                var ordered = images.OrderBy(i => i.RouteNumber == 0 ? int.MaxValue : i.RouteNumber).ThenBy(i => i.RouteIndex).ToList();
+                for (int target = 0; target < ordered.Count; target++)
+                {
+                    int current = images.IndexOf(ordered[target]);
+                    if (current != target) images.Move(current, target);
+                }
+            }
+
+            var routeData = routes.Select(r => new { number = r.Number, lengthMeters = Math.Round(r.LengthMeters),
+                points = r.Points.Select(p => new[] { p.Latitude, p.Longitude }) });
+            _ = RunMapScriptAsync("setRoutes(" + System.Text.Json.JsonSerializer.Serialize(routeData) + ");");
+            UpdateAllMarkersOnMap(fit);
+            if (selectedImage == null) MapInfoText.Text = SelectionInfo();
+        }
+
+        private void UpdateAllMarkersOnMap(bool fit = false)
+        {
+            var data=images.Select((img,index)=>new { id=index, lat=img.Latitude, lng=img.Longitude })
                 .Where(x=>x.lat.HasValue && x.lng.HasValue && PixelGeometry.ValidGps(x.lat.Value,x.lng.Value));
-            _ = RunMapScriptAsync("addImageMarkers(" + System.Text.Json.JsonSerializer.Serialize(data) + ");");
+            _ = RunMapScriptAsync("addImageMarkers(" + System.Text.Json.JsonSerializer.Serialize(data) + "," + (fit ? "true" : "false") + ");");
+        }
+
+        private void ApplyLayerVisibility()
+        {
+            _ = RunMapScriptAsync($"setLayerVisible('routes',{(ShowRoutesCheckBox.IsChecked == true ? "true" : "false")});" +
+                                  $"setLayerVisible('images',{(ShowImagesCheckBox.IsChecked == true ? "true" : "false")});");
+        }
+
+        private void Layer_Changed(object sender, RoutedEventArgs e) => ApplyLayerVisibility();
+
+        private void RouteSettings_Changed(object sender, RoutedEventArgs e)
+        {
+            if (settings is null) return; // fired during InitializeComponent
+            settings.SortImagesByRoute = SortByRouteCheckBox.IsChecked == true;
+            RebuildRoutes();
+        }
+
+        private void RouteGap_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (settings is null) return;
+            settings.RouteMaxGapMeters = RouteGapSlider.Value;
+            RebuildRoutes();
+        }
+
+        private async void UndoImage_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Button { Tag: ImageItem item } || !item.CanUndo) return;
+            string? replaced = item.Undo();
+            if (replaced != null) imageService.InvalidateThumbnailCache(replaced);
+            if (!File.Exists(item.FilePath))
+                MessageBox.Show($"Die vorherige Datei existiert nicht mehr:\n{item.FilePath}", "Rückgängig", MessageBoxButton.OK, MessageBoxImage.Warning);
+            else
+                item.Thumbnail = await imageService.CreateThumbnailAsync(item.FilePath);
+            if (selectedImage == item) SelectImage(item);
+            RebuildRoutes();
+            MapStatusText.Text = $"Rückgängig: {item.FileName} zeigt wieder den vorherigen Stand. Die zuvor gespeicherte Kopie bleibt erhalten: {replaced}";
         }
 
         private void Window_Drop(object sender, DragEventArgs e)
@@ -234,7 +333,7 @@ namespace PictureExifclone
 
             if (loadedCount > 0)
             {
-                UpdateAllMarkersOnMap();
+                RebuildRoutes(fit: true);
                 MessageBox.Show($"{loadedCount} Bild(er) erfolgreich geladen!", "Erfolg", MessageBoxButton.OK, MessageBoxImage.Information);
             }
 
@@ -313,7 +412,8 @@ namespace PictureExifclone
                             imageService.WriteGpsToImage(newPath, imageItem.Latitude!.Value, imageItem.Longitude!.Value);
                         }
 
-                        imageItem.FilePath = newPath;
+                        imageItem.PushHistory();
+                    imageItem.FilePath = newPath;
                         
                         
                         
@@ -350,6 +450,7 @@ namespace PictureExifclone
                     // Invalidiere Cache für alten Pfad
                     imageService.InvalidateThumbnailCache(oldPath);
 
+                    img.PushHistory();
                     img.FilePath = newPath;
                     if (lat.HasValue && lon.HasValue)
                     {
@@ -366,7 +467,7 @@ namespace PictureExifclone
                 }
             }
 
-            UpdateAllMarkersOnMap();
+            RebuildRoutes();
             MessageBox.Show($"{savedCount} Bild(er) erfolgreich gespeichert!\n{errorCount} Fehler.",
                 "Fertig", MessageBoxButton.OK, MessageBoxImage.Information);
         }
@@ -398,6 +499,7 @@ namespace PictureExifclone
                     // Invalidiere Cache für alten Pfad
                     imageService.InvalidateThumbnailCache(oldPath);
 
+                    img.PushHistory();
                     img.FilePath = newPath;
                     if (lat.HasValue && lon.HasValue)
                     {
@@ -414,7 +516,7 @@ namespace PictureExifclone
                 }
             }
 
-            UpdateAllMarkersOnMap();
+            RebuildRoutes();
             MessageBox.Show($"{savedCount} Bild(er) erfolgreich gespeichert!\n{errorCount} Fehler.",
                 "Fertig", MessageBoxButton.OK, MessageBoxImage.Information);
         }
@@ -433,6 +535,7 @@ namespace PictureExifclone
                     // Invalidiere Cache für alten Pfad
                     imageService.InvalidateThumbnailCache(oldPath);
                     
+                    imageItem.PushHistory();
                     imageItem.FilePath = newPath;
                     if (lat.HasValue && lon.HasValue)
                     {
@@ -441,7 +544,7 @@ namespace PictureExifclone
                     }
                     imageItem.Thumbnail = await imageService.CreateThumbnailAsync(newPath);
 
-                    UpdateAllMarkersOnMap();
+                    RebuildRoutes();
                     MessageBox.Show($"Bild gespeichert:\n{newPath}", "Erfolg", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
                 catch (Exception ex)
@@ -528,12 +631,13 @@ namespace PictureExifclone
                     // Invalidiere Cache für alten Pfad
                     imageService.InvalidateThumbnailCache(oldPath);
                     
+                    selectedImage.PushHistory();
                     selectedImage.FilePath = newPath;
                     selectedImage.Latitude = currentLatitude;
                     selectedImage.Longitude = currentLongitude;
                     selectedImage.Thumbnail = imageService.CreateThumbnail(newPath);
 
-                    UpdateAllMarkersOnMap();
+                    RebuildRoutes();
                     MessageBox.Show($"Bild mit GPS-Koordinaten gespeichert:\n{newPath}",
                         "Erfolg", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
@@ -562,7 +666,7 @@ namespace PictureExifclone
                         selectedImage = null;
                     }
                     images.Remove(imageItem);
-                    UpdateAllMarkersOnMap();
+                    RebuildRoutes();
                     UpdateButtonStates();
                 }
             }

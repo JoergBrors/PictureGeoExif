@@ -1,13 +1,16 @@
 "use strict";
-const map = L.map('map', {worldCopyJump:true}).setView([51.1657,10.4515],6);
-let currentMarker=null, selectedMarker=null, imageMarkers=[], gridLayer=null, tiles=null;
+// Double click is reserved for placing a new GPS point, so it must not zoom.
+const map = L.map('map', {worldCopyJump:true, doubleClickZoom:false}).setView([51.1657,10.4515],6);
+const imageLayer=L.layerGroup().addTo(map), routeLayer=L.layerGroup().addTo(map);
+let currentMarker=null, selectedMarker=null, gridLayer=null, tiles=null;
 let currentGridSize=100, gridEnabled=false;
 const notice=document.getElementById('notice');
+const routeColors=['#d9480f','#1971c2','#2f9e44','#9c36b5','#e67700','#0c8599','#c2255c','#5c940d'];
 function send(message){if(window.chrome?.webview) window.chrome.webview.postMessage(message);}
-function status(text){notice.textContent=text; notice.hidden=!text; send({type:'status',text:text||'Klicken Sie auf die Karte, um GPS-Koordinaten auszuwählen.'});}
+function status(text){notice.textContent=text; notice.hidden=!text; send({type:'status',text:text||'Doppelklick auf die Karte setzt neue GPS-Koordinaten.'});}
 const clickIcon=L.divIcon({className:'pin',html:'<div style="background:#e65d35;width:100%;height:100%;border-radius:50%"></div>',iconSize:[16,16]});
-function popup(name,lat,lng){const node=document.createElement('div');node.textContent=`${name} — ${lat.toFixed(6)}, ${lng.toFixed(6)}`;return node;}
 function valid(lat,lng){return Number.isFinite(lat)&&Number.isFinite(lng)&&Math.abs(lat)<=90&&Math.abs(lng)<=180;}
+
 function configure(config){
  const uri=new URL(config.url.replace('{s}','a').replace('{z}','0').replace('{x}','0').replace('{y}','0'));
  const attributionUrl=new URL(config.attributionUrl);
@@ -19,16 +22,39 @@ function configure(config){
  tiles.on('tileload',()=>status(''));
  status('Kartenkacheln werden geladen …');
 }
+
+// Names and coordinates are shown in the app above the map (no popups covering other points).
 function clearCurrentMarker(){if(currentMarker)map.removeLayer(currentMarker);currentMarker=null;}
-function setCurrentMarker(lat,lng){if(!valid(lat,lng))return;clearCurrentMarker();currentMarker=L.marker([lat,lng],{icon:clickIcon}).addTo(map).bindPopup(popup('Neue Koordinaten',lat,lng)).openPopup();map.setView([lat,lng],Math.max(map.getZoom(),13));}
-map.on('click',e=>{const lat=e.latlng.lat,lng=((e.latlng.lng+180)%360+360)%360-180;if(!valid(lat,lng))return;
- clearCurrentMarker();currentMarker=L.marker([lat,lng],{icon:clickIcon}).addTo(map).bindPopup(popup('Neue Koordinaten',lat,lng)).openPopup();send({type:'coordinates',lat,lng});});
-function addImageMarkers(markers){imageMarkers.forEach(m=>map.removeLayer(m));imageMarkers=[];
- markers.filter(m=>valid(m.lat,m.lng)).forEach(m=>{const marker=L.circleMarker([m.lat,m.lng],{radius:7,color:'#287e4c'}).addTo(map).bindPopup(popup(m.name,m.lat,m.lng));
- marker.on('click',()=>{setSelectedMarker(m.lat,m.lng,m.name);send({type:'select',id:m.id});});imageMarkers.push(marker);});
- if(imageMarkers.length)map.fitBounds(L.featureGroup(imageMarkers).getBounds().pad(0.1),{maxZoom:15});}
-function setSelectedMarker(lat,lng,name){if(!valid(lat,lng))return;clearSelectedMarker();selectedMarker=L.circleMarker([lat,lng],{radius:10,color:'#1475ce'}).addTo(map).bindPopup(popup(name,lat,lng)).openPopup();map.setView([lat,lng],Math.max(map.getZoom(),13));}
+function setCurrentMarker(lat,lng){if(!valid(lat,lng))return;clearCurrentMarker();currentMarker=L.marker([lat,lng],{icon:clickIcon,interactive:false}).addTo(map);map.setView([lat,lng],Math.max(map.getZoom(),13));}
+map.on('dblclick',e=>{const lat=e.latlng.lat,lng=((e.latlng.lng+180)%360+360)%360-180;if(!valid(lat,lng))return;
+ clearCurrentMarker();currentMarker=L.marker([lat,lng],{icon:clickIcon,interactive:false}).addTo(map);send({type:'coordinates',lat,lng});});
+
+function addImageMarkers(markers,fit){imageLayer.clearLayers();
+ markers.filter(m=>valid(m.lat,m.lng)).forEach(m=>{const marker=L.circleMarker([m.lat,m.lng],{radius:7,color:'#287e4c',weight:2,fillOpacity:0.6}).addTo(imageLayer);
+  marker.on('click',()=>{setSelectedMarker(m.lat,m.lng,false);send({type:'select',id:m.id});});
+  marker.on('mouseover',()=>send({type:'hover',id:m.id}));
+  marker.on('mouseout',()=>send({type:'hover',id:-1}));});
+ if(fit&&imageLayer.getLayers().length)map.fitBounds(L.featureGroup(imageLayer.getLayers()).getBounds().pad(0.1),{maxZoom:17});}
+
+function setSelectedMarker(lat,lng,center){if(!valid(lat,lng))return;clearSelectedMarker();
+ selectedMarker=L.circleMarker([lat,lng],{radius:11,color:'#1475ce',weight:3,fill:false,interactive:false}).addTo(map);
+ if(center!==false&&!map.getBounds().contains([lat,lng]))map.panTo([lat,lng]);}
 function clearSelectedMarker(){if(selectedMarker)map.removeLayer(selectedMarker);selectedMarker=null;}
+
+// routes: [{number, lengthMeters, points:[[lat,lng],...]}] ordered south→north / west→east.
+function setRoutes(routes){routeLayer.clearLayers();
+ routes.forEach(r=>{const pts=r.points.filter(p=>valid(p[0],p[1]));if(pts.length<2)return;
+  const color=routeColors[(r.number-1)%routeColors.length];
+  const line=L.polyline(pts,{color,weight:4,opacity:0.8}).addTo(routeLayer);
+  L.circleMarker(pts[0],{radius:5,color,fill:true,fillOpacity:1,interactive:false}).addTo(routeLayer);
+  L.circleMarker(pts[pts.length-1],{radius:5,color,fill:true,fillColor:'#fff',fillOpacity:1,interactive:false}).addTo(routeLayer);
+  line.on('mouseover',()=>send({type:'routeHover',number:r.number}));
+  line.on('mouseout',()=>send({type:'routeHover',number:0}));});
+ imageLayer.eachLayer(l=>l.bringToFront());}
+
+function setLayerVisible(name,visible){const layer=name==='routes'?routeLayer:name==='images'?imageLayer:null;if(!layer)return;
+ if(visible&&!map.hasLayer(layer))layer.addTo(map);if(!visible&&map.hasLayer(layer))map.removeLayer(layer);}
+
 function updateGrid(enabled,size){gridEnabled=!!enabled;currentGridSize=Number(size);if(gridLayer)map.removeLayer(gridLayer);gridLayer=null;
  if(!gridEnabled||!Number.isFinite(currentGridSize)||currentGridSize<10)return;
  if(map.getZoom()<13){status('Raster erst ab Zoomstufe 13 sichtbar.');return;}

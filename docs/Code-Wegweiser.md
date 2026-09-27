@@ -34,7 +34,9 @@ PictureGeoExif/
 | GPS in eine Datei schreiben | `Services/ImageService.cs` → `WriteGpsToImage` (JPEG über `JpegExifWriter`, PNG/TIFF verlustfrei, BMP abgelehnt) |
 | Exportnamen oder Zielordner ändern | `Services/AtomicFile.cs` → `ExportPath`; Ordner aus `AppSettings.OutputFolder` |
 | Datei sicher schreiben | `Services/AtomicFile.cs` → `Write` (temporäre Datei + Replace/Move) |
-| Karte: Verhalten, Marker, Raster | `Resources/map.js` (Funktionen `configure`, `addImageMarkers`, `setSelectedMarker`, `setCurrentMarker`, `updateGrid`) |
+| Karte: Verhalten, Marker, Raster, Layer | `Resources/map.js` (Funktionen `configure`, `addImageMarkers`, `setSelectedMarker`, `setCurrentMarker`, `setRoutes`, `setLayerVisible`, `updateGrid`; Doppelklick = neuer Punkt) |
+| Virtuelle Trassen / Reihenfolge der Bilder | `Services/RouteBuilder.cs` (Clustering, Pfad, Richtung); Anwendung in `MainWindow.xaml.cs` → `RebuildRoutes` |
+| Rückgängig pro Bild | `Models/ImageItem.cs` → `PushHistory`/`Undo`; `MainWindow.xaml.cs` → `UndoImage_Click` |
 | Karte: Einbindung, Sicherheit, Tile-Anbieter | `MainWindow.xaml.cs` → `InitializeWebView` (Virtual Host, Navigation-Filter, UA) und `CoreWebView2_WebMessageReceived`; `Resources/map.html` (CSP) |
 | Tile-URL oder Attribution konfigurieren | `AppSettings.cs` (`TileUrl`, `TileAttribution`, `TileAttributionUrl`) |
 | Editor-Werkzeug hinzufügen oder ändern | `ImageEditorWindow.xaml.cs` → `GetOperation`; Pixel-Implementierung in `Services/EditorSession.cs` (`Blur`, `Pixelate`, `Stamp`) |
@@ -91,12 +93,17 @@ map.js  ──postMessage──▶  MainWindow.CoreWebView2_WebMessageReceived
   {type:"ready"}                  → configure(...) senden, Marker + Raster setzen
   {type:"status", text}           → MapStatusText
   {type:"select", id}             → Bild mit Index id auswählen
+  {type:"hover", id}              → Name/Trasse/Koordinaten im grauen Bereich (id −1 = Ende)
+  {type:"routeHover", number}     → Trasseninfo (Bilder, Länge, Richtung)
   {type:"coordinates", lat, lng}  → aktuelle GPS-Auswahl (validiert)
 
 MainWindow ──ExecuteScriptAsync──▶ map.js
   configure({url, attribution, attributionUrl})
-  addImageMarkers([{id, lat, lng, name}]) · setSelectedMarker(lat,lng,name) · clearSelectedMarker()
+  addImageMarkers([{id, lat, lng}], fit) · setSelectedMarker(lat,lng,center) · clearSelectedMarker()
+  setRoutes([{number, lengthMeters, points:[[lat,lng],…]}]) · setLayerVisible("routes"|"images", bool)
   setCurrentMarker(lat,lng) · clearCurrentMarker() · updateGrid(enabled, meter)
 ```
+
+`id` ist der aktuelle Listenindex. Deshalb ruft jede Änderung an Liste oder GPS `RebuildRoutes` auf, das Trassen, Reihenfolge und Marker gemeinsam neu setzt.
 
 Nachrichten werden nur vom Ursprung `https://picturegeoexif.local/` angenommen. Zahlen gehen kulturunabhängig (`InvariantCulture`) an JavaScript, Texte als JSON-serialisierte Strings.

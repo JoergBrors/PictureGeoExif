@@ -10,6 +10,9 @@ namespace PictureExifclone
         public string TileAttribution { get; set; } = "OpenStreetMap contributors";
         public string TileAttributionUrl { get; set; } = "https://www.openstreetmap.org/copyright";
         public string OutputFolder { get; set; } = string.Empty;
+        /// <summary>Photos farther apart than this start a new virtual route (trench).</summary>
+        public double RouteMaxGapMeters { get; set; } = 200;
+        public bool SortImagesByRoute { get; set; } = true;
         /// <summary>Per provider profile; prices are entered and dated by the user, never hard-coded.</summary>
         public Dictionary<string, AiPriceEntry> AiPrices { get; set; } = new();
         public string? AiTemplatePath { get; set; }

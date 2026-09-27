@@ -12,8 +12,10 @@ PictureGeoExif ergänzt Fotos um GPS-Koordinaten, bearbeitet Bilder und schlägt
 | Bereich | Bedienung |
 | --- | --- |
 | **Bilder laden** | Schaltfläche „📁 Bilder laden“ oder Dateien ins Fenster ziehen. Unterstützt: JPG, PNG, BMP, TIF. |
-| **Bildkacheln** | Klick wählt das Bild aus. Hat es GPS, zeigt die Karte seine Position. ✏️ = Editor, 💾 = speichern, ✕ = aus der Liste entfernen (die Datei bleibt erhalten). |
-| **Karte** | Klick setzt neue Koordinaten (oranger Marker). Grüne Kreise sind geladene Bilder mit GPS; ein Klick darauf wählt das Bild. Optional lässt sich ein metrisches Raster ab Zoomstufe 13 einblenden. |
+| **Bildkacheln** | Klick wählt das Bild aus. Hat es GPS, zeigt die Karte seine Position. Unter dem Bild stehen Koordinaten und Trassenposition („Trasse 2 · Nr. 5“). Buttons: ✏ = Editor, 💾 = speichern, ↶ = letzte Änderung an diesem Bild rückgängig, ✕ = aus der Liste entfernen (die Datei bleibt erhalten). |
+| **Karte** | **Doppelklick** setzt neue Koordinaten (oranger Marker); ein einfacher Klick verändert nichts. Grüne Kreise sind Bilder mit GPS; ein Klick darauf wählt das Bild, beim Überfahren erscheint der Name im grauen Bereich über der Karte (keine Popups, die andere Punkte verdecken). Optional lässt sich ein metrisches Raster ab Zoomstufe 13 einblenden. |
+| **Trassen** | Aus allen GPS-Punkten entstehen virtuelle Trassen: Punkte, die höchstens den eingestellten Abstand (Standard 200 m) voneinander entfernt liegen, gehören zu einer Trasse. Die Trasse folgt dem Verlauf der Punkte und läuft Süd → Nord bzw. West → Ost (Startpunkt gefüllt, Endpunkt hohl). Bei eingeschaltetem „Bildliste nach Trasse ordnen“ entspricht die Reihenfolge der Kacheln der Reihenfolge entlang der Trasse. Überfahren einer Trasse zeigt Bildanzahl, Länge und Richtung. |
+| **Layer** | „Trassen anzeigen“ und „Bilder anzeigen“ blenden die jeweilige Ebene ein oder aus. |
 | **📌 Referenzbild verwenden** | Übernimmt die GPS-Daten eines anderen Fotos als aktuelle Koordinaten. |
 | **GPS auf ausgewähltes Bild anwenden** | Speichert eine Kopie des ausgewählten Bildes mit den aktuellen Koordinaten. Vorhandene Koordinaten werden erst nach Rückfrage ersetzt. |
 | **GPS auf alle Bilder anwenden und speichern** | Wie oben, für alle geladenen Bilder. |
@@ -21,6 +23,8 @@ PictureGeoExif ergänzt Fotos um GPS-Koordinaten, bearbeitet Bilder und schlägt
 | **Speicherort ändern** | Wählt den Ausgabeordner. |
 | **KI-Metadaten · Batch & Chat** | Öffnet das KI-Fenster (siehe unten). |
 | **📜 Lizenzen anzeigen** | Projekt- und Drittanbieterlizenzen. |
+
+**↶ Rückgängig an der Kachel** setzt das Bild auf den Stand vor der letzten Speicherung bzw. GPS-Zuweisung zurück (Pfad und Koordinaten). Die dabei erzeugte Kopie im Ausgabeordner wird nicht gelöscht.
 
 GPS lässt sich in JPEG, PNG und TIFF schreiben. **BMP kann keine GPS-Daten speichern** und wird mit einer Meldung abgelehnt. Bei JPEG bleibt die Bildqualität vollständig erhalten, denn es wird nur der Metadatenblock ersetzt.
 

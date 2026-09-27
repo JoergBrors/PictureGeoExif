@@ -2,6 +2,23 @@
 
 Alle nennenswerten Änderungen an PictureGeoExif. Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/). Versionen entsprechen den Git-Tags.
 
+## [Unveröffentlicht]
+
+### Hinzugefügt
+
+- **Virtuelle Trassen:** GPS-Punkte werden zu Trassen gruppiert (einstellbarer maximaler Punktabstand) und entlang des Verlaufs Süd → Nord bzw. West → Ost geordnet; die Bildliste folgt dieser Reihenfolge (abschaltbar). Kacheln zeigen „Trasse n · Nr. k“. (`Services/RouteBuilder.cs`)
+- **Layer-Schalter** für Trassen und Bilder auf der Karte.
+- **Rückgängig pro Bild** (↶ an der Kachel): stellt Pfad und Koordinaten vor der letzten Speicherung bzw. GPS-Zuweisung wieder her.
+
+### Geändert
+
+- Neuer GPS-Punkt nur noch per **Doppelklick** (der Doppelklick-Zoom ist dafür deaktiviert).
+- Bildname und Koordinaten erscheinen im grauen Bereich über der Karte statt als Popup, das andere Punkte verdeckt.
+
+### Behoben
+
+- Kachelbuttons waren abgeschnitten, weil der globale Button-Innenabstand die schmalen Buttons überdeckte. Die Kacheln haben jetzt einen eigenen Stil.
+
 ## [0.96] – 2026-09-27
 
 Details und Nachweise: [docs/GUI-AI-Update-Plan.md](docs/GUI-AI-Update-Plan.md), Abschnitt 10.

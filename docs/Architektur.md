@@ -44,6 +44,13 @@ flowchart TB
 2. GPS kommt aus einem Kartenklick (`coordinates`-Nachricht), aus einem Referenzbild oder aus dem ausgewählten Bild.
 3. **Speichern** kopiert das Original mit `ImageService.SaveSingleImage` kollisionsfrei in den Ausgabeordner und schreibt dort GPS. **Das Original bleibt unverändert.**
 
+### Virtuelle Trassen (`RouteBuilder`)
+
+1. GPS-Punkte werden lokal metrisch projiziert. Punkte mit höchstens `RouteMaxGapMeters` Abstand (auch über Zwischenpunkte) bilden eine Trasse (Single-Linkage).
+2. Je Trasse entsteht ein offener Pfad: Nearest Neighbour vom südlichsten bzw. westlichsten Punkt, anschließend 2-opt gegen Umwege und Kreuzungen.
+3. Überwiegt die Nord-Süd-Ausdehnung, läuft die Trasse Süd → Nord, sonst West → Ost. Die Trassen werden nach ihrem Startpunkt nummeriert.
+4. `MainWindow.RebuildRoutes` setzt „Trasse n · Nr. k“ an jedem Bild, ordnet optional die Bildliste danach und überträgt Trassen und Marker an die Karte.
+
 ### GPS schreiben (`ImageService.WriteGpsToImage`)
 
 - **JPEG:** `Image.Identify` liest nur die Metadaten, dann wird das GPS im `ExifProfile` gesetzt. `JpegExifWriter.ReplaceExif` ersetzt ausschließlich das EXIF-APP1-Segment; Bilddaten, ICC, XMP und andere Segmente bleiben bytegleich.

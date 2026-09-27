@@ -75,6 +75,38 @@ namespace PictureExifclone.Models
             ? string.Create(System.Globalization.CultureInfo.InvariantCulture, $"📍 {Latitude:F6}, {Longitude:F6}")
             : "Keine GPS-Daten";
 
+        private int _routeNumber, _routeIndex;
+
+        /// <summary>1-based virtual route number, 0 = no route (no GPS).</summary>
+        public int RouteNumber { get => _routeNumber; private set { _routeNumber = value; OnPropertyChanged(); OnPropertyChanged(nameof(RouteInfo)); } }
+        /// <summary>1-based position along the route (south→north or west→east).</summary>
+        public int RouteIndex { get => _routeIndex; private set { _routeIndex = value; OnPropertyChanged(); OnPropertyChanged(nameof(RouteInfo)); } }
+        public string RouteInfo => RouteNumber > 0 ? $"Trasse {RouteNumber} · Nr. {RouteIndex}" : "";
+
+        public void SetRoute(int number, int index) { RouteNumber = number; RouteIndex = index; }
+
+        private readonly Stack<(string Path, double? Latitude, double? Longitude)> _history = new();
+
+        public bool CanUndo => _history.Count > 0;
+
+        /// <summary>Remember the current state before a save/GPS change so it can be undone.</summary>
+        public void PushHistory()
+        {
+            _history.Push((FilePath, Latitude, Longitude));
+            OnPropertyChanged(nameof(CanUndo));
+        }
+
+        /// <summary>Restores the previous path and coordinates. Returns the path that was active before undo.</summary>
+        public string? Undo()
+        {
+            if (_history.Count == 0) return null;
+            string current = FilePath;
+            var previous = _history.Pop();
+            FilePath = previous.Path; Latitude = previous.Latitude; Longitude = previous.Longitude;
+            OnPropertyChanged(nameof(CanUndo));
+            return current;
+        }
+
         public event PropertyChangedEventHandler? PropertyChanged;
 
         protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)

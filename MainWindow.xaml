@@ -28,6 +28,16 @@
                 </DataTrigger>
             </Style.Triggers>
         </Style>
+        <!-- Compact buttons for the 180 px image tiles (the global button padding would clip the icons) -->
+        <Style x:Key="TileButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="1,0"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
     </Window.Resources>
     
     <Grid>
@@ -77,6 +87,7 @@
                                         <Grid>
                                             <Grid.RowDefinitions>
                                                 <RowDefinition Height="150"/>
+                                                <RowDefinition Height="Auto"/>
                                                 <RowDefinition Height="Auto"/>
                                                 <RowDefinition Height="Auto"/>
                                             </Grid.RowDefinitions>
@@ -132,48 +143,22 @@
                                                        TextWrapping="Wrap"
                                                        Margin="0,5,0,5"/>
                                             
+                                            <!-- Trassenzuordnung -->
+                                            <TextBlock Grid.Row="2" Text="{Binding RouteInfo}" FontSize="10" FontWeight="SemiBold"
+                                                       Foreground="#FF1971C2" TextAlignment="Center" Margin="0,0,0,4"/>
+
                                             <!-- Aktionsbuttons -->
-                                            <Grid Grid.Row="2" Margin="0,0,0,5">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-                                                
-                                                <Button Grid.Column="0" 
-                                                        Content="✏️" 
-                                                        Height="25" 
-                                                        Margin="0,0,2,0"
-                                                        Background="#FF2196F3" 
-                                                        Foreground="White"
-                                                        FontSize="14"
-                                                        Click="EditImage_Click"
-                                                        Tag="{Binding}"
-                                                        ToolTip="Bearbeiten"/>
-                                                
-                                                <Button Grid.Column="1" 
-                                                        Content="💾" 
-                                                        Height="25" 
-                                                        Margin="2,0,2,0"
-                                                        Background="#FF28A745" 
-                                                        Foreground="White"
-                                                        FontSize="14"
-                                                        Click="SaveSingleImage_Click"
-                                                        Tag="{Binding}"
-                                                        ToolTip="Speichern"/>
-                                                
-                                                <Button Grid.Column="2" 
-                                                        Content="✕" 
-                                                        Width="25" 
-                                                        Height="25" 
-                                                        Margin="2,0,0,0"
-                                                        Background="#FFDC3545" 
-                                                        Foreground="White"
-                                                        FontSize="14"
-                                                        Click="RemoveImage_Click"
-                                                        Tag="{Binding}"
-                                                        ToolTip="Entfernen"/>
-                                            </Grid>
+                                            <UniformGrid Grid.Row="3" Columns="4" Margin="0,0,0,2">
+                                                <Button Style="{StaticResource TileButton}" Content="✏" Background="#FF2196F3"
+                                                        Click="EditImage_Click" Tag="{Binding}" ToolTip="Bearbeiten"/>
+                                                <Button Style="{StaticResource TileButton}" Content="💾" Background="#FF28A745"
+                                                        Click="SaveSingleImage_Click" Tag="{Binding}" ToolTip="Speichern (Kopie mit GPS)"/>
+                                                <Button Style="{StaticResource TileButton}" Content="↶" Background="#FF6C757D" FontSize="15"
+                                                        Click="UndoImage_Click" Tag="{Binding}" IsEnabled="{Binding CanUndo}"
+                                                        ToolTip="Letzte Änderung an diesem Bild rückgängig machen"/>
+                                                <Button Style="{StaticResource TileButton}" Content="✕" Background="#FFDC3545"
+                                                        Click="RemoveImage_Click" Tag="{Binding}" ToolTip="Aus der Liste entfernen (Datei bleibt erhalten)"/>
+                                            </UniformGrid>
                                         </Grid>
                                     </Border>
                                 </DataTemplate>
@@ -253,7 +238,7 @@
 
             <!-- Karten-Header -->
             <Border Grid.Row="0" Background="#FF1976D2" Padding="10">
-                <TextBlock Text="🗺️ OpenStreetMap - Interaktive Karte" 
+                <TextBlock Text="🗺️ Karte · Doppelklick setzt neue GPS-Koordinaten" 
                            FontSize="16" FontWeight="Bold" 
                            Foreground="White"
                            HorizontalAlignment="Center"/>
@@ -262,9 +247,30 @@
             <!-- Karten-Steuerung -->
             <Border Grid.Row="1" Background="#FFF0F0F0" Padding="10" BorderBrush="#FFCCCCCC" BorderThickness="0,0,0,1">
                 <StackPanel>
-                    <TextBlock x:Name="MapStatusText" Text="Karte wird geladen …" TextWrapping="Wrap" 
-                               FontSize="12" Margin="0,0,0,10" HorizontalAlignment="Center"/>
-                    
+                    <!-- Bild-/Trasseninfo: ersetzt Popups auf der Karte -->
+                    <TextBlock x:Name="MapInfoText" Text="Kein Bild ausgewählt" FontSize="13" FontWeight="SemiBold"
+                               TextTrimming="CharacterEllipsis" Margin="0,0,0,4"/>
+                    <TextBlock x:Name="MapStatusText" Text="Karte wird geladen …" TextWrapping="Wrap"
+                               FontSize="11" Foreground="#FF555555" Margin="0,0,0,8"/>
+
+                    <!-- Layer und Trassen -->
+                    <WrapPanel Margin="0,0,0,4">
+                        <CheckBox x:Name="ShowRoutesCheckBox" Content="Trassen anzeigen" IsChecked="True" Margin="0,0,16,0"
+                                  VerticalAlignment="Center" Checked="Layer_Changed" Unchecked="Layer_Changed"/>
+                        <CheckBox x:Name="ShowImagesCheckBox" Content="Bilder anzeigen" IsChecked="True" Margin="0,0,16,0"
+                                  VerticalAlignment="Center" Checked="Layer_Changed" Unchecked="Layer_Changed"/>
+                        <CheckBox x:Name="SortByRouteCheckBox" Content="Bildliste nach Trasse ordnen" IsChecked="True" Margin="0,0,16,0"
+                                  VerticalAlignment="Center" Checked="RouteSettings_Changed" Unchecked="RouteSettings_Changed"
+                                  ToolTip="Reihenfolge entlang der Trasse: Süd→Nord bzw. West→Ost"/>
+                        <TextBlock Text="Max. Punktabstand je Trasse:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <Slider x:Name="RouteGapSlider" Width="140" Minimum="25" Maximum="1000" Value="200" TickFrequency="25"
+                                IsSnapToTickEnabled="True" VerticalAlignment="Center" ValueChanged="RouteGap_Changed"
+                                ToolTip="Punkte, die weiter auseinanderliegen, bilden eine neue Trasse"/>
+                        <TextBlock VerticalAlignment="Center" FontWeight="Bold" Margin="6,0,0,0">
+                            <Run Text="{Binding Value, ElementName=RouteGapSlider, StringFormat={}{0:F0}}"/><Run Text=" m"/>
+                        </TextBlock>
+                    </WrapPanel>
+
                     <!-- Raster-Steuerung -->
                     <Grid Margin="0,5,0,0">
                         <Grid.ColumnDefinitions>
