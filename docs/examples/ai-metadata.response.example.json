@@ -1,0 +1,11 @@
+{
+  "jahreszeit": {
+    "value": "Winter",
+    "confidence": 0.88,
+    "evidence": "Schneebedeckte Landschaft und kahle Laubbäume; die Aufnahmeangaben passen dazu."
+  },
+  "titel": {
+    "value": "Verschneiter Weg zwischen kahlen Bäumen"
+  },
+  "stichwoerter": ["Schnee", "Weg", "Bäume", "Landschaft"]
+}
