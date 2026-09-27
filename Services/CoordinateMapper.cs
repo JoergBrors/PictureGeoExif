@@ -5,7 +5,7 @@ using System.Windows.Media;
 namespace PictureExifclone.Services
 {
     /// <summary>
-    /// Zentrale Klasse für Koordinaten-Transformation zwischen View und Pixel-Space
+    /// Zentrale Klasse fÃ¼r Koordinaten-Transformation zwischen View und Pixel-Space
     /// </summary>
     public class CoordinateMapper
     {

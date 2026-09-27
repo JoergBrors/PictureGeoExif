@@ -72,8 +72,8 @@ namespace PictureExifclone.Models
         public bool HasGpsData => Latitude.HasValue && Longitude.HasValue;
 
         public string GpsInfo => HasGpsData 
-            ? $"?? {Latitude:F6}, {Longitude:F6}" 
-            : "?? Keine GPS-Daten";
+            ? string.Create(System.Globalization.CultureInfo.InvariantCulture, $"📍 {Latitude:F6}, {Longitude:F6}")
+            : "Keine GPS-Daten";
 
         public event PropertyChangedEventHandler? PropertyChanged;
 

@@ -1,0 +1,33 @@
+name: Build & Test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET (global.json)
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      # TreatWarningsAsErrors is set in the project, so any new warning fails the build.
+      - name: Build Debug
+        run: dotnet build PictureExifclone.sln -c Debug
+
+      - name: Test Release
+        run: dotnet test PictureExifclone.sln -c Release
+
+      - name: Package audit
+        shell: pwsh
+        run: |
+          $out = dotnet list PictureExifclone.csproj package --vulnerable --include-transitive
+          $out
+          if ($out -match '>\s') { throw 'Vulnerable packages found' }

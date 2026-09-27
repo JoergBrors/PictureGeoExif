@@ -1,6 +1,6 @@
 # GUI & AI Update – Analyse und Umsetzungsplan
 
-Stand: 27.09.2026. Arbeitsbranch: `GUI-AI-Update` (Leerzeichen sind in Git-Branch-Namen nicht zulässig).
+Stand: 27.09.2026. Arbeitsbranch: `GUI-AI-Update` (Leerzeichen sind in Git-Branch-Namen nicht zulässig). Übersicht aller Dokumente: [docs/README.md](README.md); Umsetzungsstand: Abschnitt 10.
 
 ## Auftrag und Umfang
 
@@ -257,4 +257,24 @@ Die OpenAI API mit `gpt-5-mini` (Profil `openai-economy`) ist der gewünschte St
 
 Normale EXIF-Aufnahmedaten unterstützen die Beschreibung und lokale XMP-Abbildung. Trainingserlaubnisse werden ausschließlich aus bestehenden expliziten Präferenzen oder einer vom Nutzer gewählten JSON-/Chat-Vorgabe übernommen, niemals aus Motiv, Datum oder Kameramodell geraten. Das KI-Antwortschema enthält keine frei generierbaren Rechtefelder. Die genaue normative XMP-Abbildung von LearningOptOutIn bleibt bis zum Normabgleich aus Abschnitt 7 gesperrt.
 
-Status: Entwurf und Beispiele erstellt; keine Anbieteranmeldung, Bildübertragung oder kostenpflichtige Inferenz durchgeführt. Die Anwendung verarbeitet diese Vorlage noch nicht. Fenster, Adapter, Vorlagenvalidator und Jobverwaltung folgen in der Umsetzung nach den grundlegenden Editor-/Metadatenreparaturen.
+Status: umgesetzt, siehe Abschnitt 10. Keine Anbieteranmeldung, Bildübertragung oder kostenpflichtige Inferenz durchgeführt; die Anbieteradapter sind nur offline (Schema, Parsing, Validierung) getestet.
+
+## 10. Umsetzungsstand (27.09.2026)
+
+| Paket | Stand | Nachweis |
+| --- | --- | --- |
+| 1 Warnungen | Erledigt. .NET 10 (`global.json` 10.0.401), `TreatWarningsAsErrors`, generierte AssemblyInfo mit korrekten UTF-8-Metadaten. | Debug- und Release-Rebuild: 0 Warnungen, 0 Fehler. |
+| 2 OSM/WebView2 | Erledigt bis auf Netzwerknachweis. Lokales Leaflet über Virtual Host, CSP, Tile-URL ohne Subdomains, eigener User-Agent-Zusatz, Attribution, 403/429-Anzeige, Rasterbegrenzung, validierte Webnachrichten. | Header-/Cache-Nachweis im Netzwerkprotokoll steht aus. |
+| 3 Editor-Datenintegrität | Erledigt. Verlustfreie Historie (PNG), Undo/Redo, formatgetreuer Export, kollisionsfreie atomare Exportnamen. GPS-Schreiben bei JPEG ersetzt nur das EXIF-APP1-Segment (Scan-Daten bytegleich), PNG/TIFF verlustfrei, BMP abgelehnt; Ergebnis wird vor dem Ersetzen nachgelesen. | Tests: Scan-Daten identisch, Idempotenz, ungültige Koordinaten ändern nichts, Original-Hash unverändert. |
+| 4 Editor/GUI | Weitgehend erledigt. Zentrale Pixelgeometrie, Blur/Verpixelung nur in der Auswahl, Stempel mit Messung und Randabstand an allen Ankern. | Geometrie-/Filtertests; interaktiver DPI-/Monitortest steht aus. |
+| 5 Laufzeit/CI | Erledigt. Release baut den Tag-Commit, PR-Workflow mit Build, Tests und Paketaudit. Single-File-Publish liefert `Resources/` und `Templates/` neben der EXE. | Publish-Smoke-Test win-x64; ARM64-Laufzeittest steht aus. |
+| 6 KI-Metadaten | Umgesetzt: `AiMetadataWindow`, Adapter OpenAI/Azure (Responses, Structured Outputs, Entra ID oder Schlüssel) und Gemini (`generateContent`, JSON-Schema), lokale Queue mit begrenzter Parallelität, Budgetreservierung vor Versand, Ergebnis-Cache, Chat mit typisierten Aktionen, XMP-Sidecar mit Nachprüfung, Audit und Rückgängig. | 46 Unit-Tests inkl. Fenster-Instanziierung. |
+
+Bewusst noch nicht umgesetzt:
+
+- Nativer Provider-Batch (50 % Rabatt, bis 24 h): Die lokale Queue ist der erste Pfad. `AiPrices.Cost` rechnet keinen pauschalen Batch-Rabatt.
+- Decodieren und Schreiben von `LearningOptOutIn`: Ein vorhandener Tag gilt als „Entscheidung nötig“, nie als Zustimmung. Schreiben bleibt bis zum CIPA-Normabgleich gesperrt. IPTC-PLUS-Data-Mining-Einschränkungen führen zum Überspringen.
+- Eingebettetes XMP-Schreiben: nur Sidecar (`bild.jpg.xmp`).
+- Preise sind nicht hinterlegt. Sie werden pro Profil mit Prüfdatum eingegeben; ohne sie startet kein kostenpflichtiger Lauf.
+- SixLabors-Hauptversionen 4.x/3.x wegen des Lizenzmodells nicht aktualisiert; keine bekannten Schwachstellen in den aktuellen Paketen.
+- Bekannte Grenze: Beim EXIF-Neuserialisieren durch ImageSharp können Offsets in herstellerspezifischen MakerNotes ungültig werden. Das galt schon vor der Änderung und betrifft keine Bilddaten.

@@ -1,98 +1,79 @@
-# Changelog — Zusammenfassung aller Fix- und Implementierungsdokumente
+# Changelog
 
-Dieses zentrale Changelog fasst alle vorhandenen „_FIX.md"- und "IMPLEMENTATION*.md"-Dateien im Repository zusammen und verweist auf die Originaldokumente. Die Originaldateien bleiben unverändert im Repository; dieses Dokument dient als zentrale Übersicht und schnelles Nachschlagewerk.
+Alle nennenswerten Ã„nderungen an PictureGeoExif. Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/). Versionen entsprechen den Git-Tags.
 
-Hinweis: Für vollständige Details siehe die verlinkten Dateien im Repository.
+## [1.1.0] â€“ unverÃ¶ffentlicht (Branch `GUI-AI-Update`)
 
----
+Details und Nachweise: [docs/GUI-AI-Update-Plan.md](docs/GUI-AI-Update-Plan.md), Abschnitt 10.
 
-## Inhalt
+### HinzugefÃ¼gt
 
-- Fixes (Kurzbeschreibungen, Dateien)
-- Implementierung / Konzepte (Kurzbeschreibungen, Dateien)
-- Empfehlung / Nächste Schritte
+- **KI-Metadaten-Fenster** (`AiMetadataWindow`):
+  - Anbieter: OpenAI (`gpt-5-mini`, Standard), Azure OpenAI (Entra ID oder SchlÃ¼ssel), Google Gemini; jeweils Structured Outputs.
+  - Stapelverarbeitung mit lokaler Queue, begrenzter ParallelitÃ¤t, Budgetreservierung und Ergebnis-Cache.
+  - Metadaten-Chat mit typisierten Aktionen; manuelle Jahreszeit ohne Modellaufruf.
+  - JSON-Vorlagen mit Validierung und Versionierung.
+  - Review und Speichern als XMP-Sidecar mit NachprÃ¼fung, Audit-Log und RÃ¼ckgÃ¤ngig.
+- Lokale Ãœbernahme von EXIF nach XMP: Aufnahmezeit, GPS, Urheber, Copyright.
+- Erkennung von NutzungsprÃ¤ferenzen: EXIF `LearningOptOutIn` fÃ¼hrt zu einer Entscheidung vor dem Senden, IPTC-Data-Mining-EinschrÃ¤nkungen zum Ãœberspringen.
+- API-SchlÃ¼ssel in der Windows-Anmeldeinformationsverwaltung.
+- Neue Services: `JpegExifWriter`, `AtomicFile`, `PixelGeometry`, `EditorSession`, `AiMetadataService`, `AiProviders`, `CredentialStore`.
+- **Editor:** Undo/Redo, echte UnschÃ¤rfe (Blur), Vorher/Nachher-Vergleich, Formatwahl beim Export, Abbrechen langer VorgÃ¤nge.
+- **Tests:** `tests/PictureGeoExif.Tests` (xUnit, 46 Tests).
+- **CI:** `build.yml` fÃ¼r Pull Requests (Build ohne Warnungen, Tests, Paketaudit).
+- **Lizenzen:** `scripts/Update-ThirdPartyLicenses.ps1` erzeugt `licenses/` reproduzierbar aus den NuGet-Paketen.
+- **Dokumentation:** `docs/README.md`, `Code-Wegweiser.md`, `Architektur.md`, `Entwicklung.md`, `Benutzerhandbuch.md`, `Betrieb-und-Unternehmenseinsatz.md`.
 
----
+### GeÃ¤ndert
 
-## Fixes
+- **Laufzeit:** .NET 8 â†’ **.NET 10** (`global.json` 10.0.401), `TreatWarningsAsErrors`, generierte Assembly-Metadaten, NuGet-Audit.
+- **Karte:**
+  - Leaflet 1.9.4 wird lokal Ã¼ber einen WebView2-Virtual-Host ausgeliefert; Content-Security-Policy.
+  - Tile-URL `tile.openstreetmap.org` ohne Subdomains; eigene App-Kennung im User-Agent.
+  - Sichtbare Attribution, Fehleranzeige bei 403/429, begrenztes Raster, validierte Webnachrichten.
+  - Tile-Anbieter Ã¼ber `settings.json` konfigurierbar.
+- **GPS-Schreiben:**
+  - JPEG wird nicht mehr neu kodiert (vorher QualitÃ¤tsverlust); nur der EXIF-Block wird ersetzt.
+  - PNG/TIFF verlustfrei; BMP wird abgelehnt.
+  - NachprÃ¼fung und atomares Schreiben.
+- **Exporte:** kollisionsfreie Namen (Millisekunden + GUID), kein Ãœberschreiben vorhandener Dateien, keine Teildateien bei Fehlern.
+- **Editor:**
+  - Pixelgenaue Auswahl unabhÃ¤ngig von Zoom und DPI; Fit auch unter 10 %.
+  - Stempel mit Textmessung und Randabstand an allen Ankern.
+  - Verlustfreie Historie; Export im gewÃ¤hlten statt erzwungenem JPEG-Format.
+- **Release-Workflow:** baut den Tag-Commit statt `main`, nutzt .NET aus `global.json` und fÃ¼hrt die Tests aus.
+- **Pakete:** MetadataExtractor 2.9.3, WebView2 1.0.4191.47, XmpCore 6.1.10.1 (explizit), Azure.Identity 1.21.0 (neu). SixLabors bleibt aus LizenzgrÃ¼nden auf den bisherigen Hauptversionen.
+- **`THIRD-PARTY-LICENSES.md`:**
+  - Alle Laufzeitkomponenten sind erfasst, auch transitive und die .NET-Runtime.
+  - Die Six Labors Split License ist erlÃ¤utert.
+  - Neu ist ein Abschnitt zum Einsatz im Unternehmen.
 
-### 1) `BILDANZEIGE_FIX.md` — Bildanzeige nach Änderungen (Zoom-Reset)
-- Problem: Nach Änderungen (Text, Geo, Verpixeln, Crop) wurde das Bild mit altem Zoom (z. B. 300%) neu geladen und erschien vergrößert oder als Ausschnitt.
-- Lösung: Nach dem Anwenden von Änderungen wird `currentZoom` auf `1.0` zurückgesetzt, `ApplyZoom()` aufgerufen. Zusätzlich GC-Collect + Dispatcher-basiertes Zentrieren eingeführt.
-- Pfad: `BILDANZEIGE_FIX.md`
+### Behoben
 
-### 2) `BILDBEARBEITUNG_FIX.md` — Editor zeigt leeren Bildschirm
-- Problem: Editor zeigte manchmal nur einen leeren/weißen Bereich.
-- Lösung: Initialisierung an `ContentRendered` / `Dispatcher.InvokeAsync`, Fallback auf 100% Zoom, ggf. WindowState maximized und Debug-Ausgaben.
-- Pfad: `BILDBEARBEITUNG_FIX.md`
+- Build-Warnungen CA1416, CS0108, CS8618, CS8073 (46 Meldungen) an der Ursache behoben.
+- â€žAlle entfernenâ€œ leerte die Karte auch nach â€žNeinâ€œ.
+- Bildauswahl Ã¼ber die Kachel fÃ¼hrte die Karte nicht nach.
+- Zeichenkodierung: 8 Quelldateien waren Windows-1252. Umlaute in Meldungen, Firmenname und GPS-Anzeige (â€ž??â€œ) waren fehlerhaft.
+- `licenses/` enthielt gespeicherte NuGet-HTML-Seiten statt Lizenztexten und veraltete Versionen. Die falschen Ordnernamen `LeafFleat` und `OpenStreetView` heiÃŸen jetzt `Leaflet` und `OpenStreetMap`.
 
-### 3) `EDITOR_ULTRA_ROBUST_FIX.md` — Robuste Editor-Workflows und Temp-Dateien
-- Problem: Timing- und FileStream-Fehler führten zu Exceptions wie "Value cannot be null (key)".
-- Lösung: Temp-Datei-Erstellung mit Validierung, Byte-Array-Laden in RAM, `EndInit()` innerhalb `using`, verbesserte Cleanup- und Logging-Strategien.
-- Pfad: `EDITOR_ULTRA_ROBUST_FIX.md`
+### Bekannte EinschrÃ¤nkungen
 
-### 4) `FINAL_IMAGE_LOADING_FIX.md` — Finale Lösung für Thumbnail- und Editor-Laden
-- Problem: MemoryStream wurde zu früh disposed; falsche Cache-Optionen führten zu Null-Exceptions beim Thumbnail-Laden.
-- Lösung: Für Thumbnails Uri-basiertes Laden (`LoadBitmapImageFromFile`), für Editor Stream-basiertes Laden mit `File.ReadAllBytes()` und `EndInit()` innerhalb `using`.
-- Pfad: `FINAL_IMAGE_LOADING_FIX.md`
+- `LearningOptOutIn` wird noch nicht decodiert oder geschrieben (erst nach dem Abgleich mit der CIPA-Norm).
+- XMP wird nur als Sidecar geschrieben.
+- Der native Batch-Modus der Anbieter ist nicht umgesetzt.
+- â€žAlle speichernâ€œ lÃ¤uft synchron im UI-Thread.
+- Die Legacy-Services (`OptimizedImageService`, `ImageProcessingService`, `UndoService`, `CoordinateMapper`) sind noch im Projekt, aber ungenutzt.
 
-### 5) `SCHWARZES_BILD_FIX.md` — Schwarzes Bild nach Änderungen
-- Problem: Nach Änderungen wurde das Bild komplett schwarz angezeigt (Cache / File-Lock Konflikte).
-- Lösung: DisplayImage.Source vor Neuladen auf `null` setzen, GC-Collect, stream-basiertes Laden mit `BitmapCacheOption.OnLoad` und `Freeze()`.
-- Pfad: `SCHWARZES_BILD_FIX.md`
+## [0.95] und frÃ¼her (Februar 2026)
 
-### 6) `SCROLL_POSITION_FIX.md` — Scrollposition nach Reload wiederherstellen
-- Problem: Nach Reload wurde Scroll-Position auf Mitte gesetzt, sodass der bearbeitete Bereich außerhalb des Viewports lag.
-- Lösung: Vor Änderungen Scroll-Offsets abspeichern und nach Reload via Dispatcher wiederherstellen.
-- Pfad: `SCROLL_POSITION_FIX.md`
+FrÃ¼here StÃ¤nde sind Ã¼ber die Git-Tags `0.6`, `0.8`, `v0.9`, `v0.92` und `v0.95` erreichbar. Zusammenfassung:
 
-### 7) `THUMBNAIL_DISPLAY_FIX.md` — Thumbnail-Anzeige stabilisieren
-- Problem: Thumbnails werden nicht sichtbar (NULL oder stille Fehler), die Anzeige wirkte leer.
-- Lösung: Visueller Border/Hintergrund, besseres Error-Handling beim Erstellen von Thumbnails und Debug-Output, Tooltips für Dateinamen.
-- Pfad: `THUMBNAIL_DISPLAY_FIX.md`
+- Erste WPF-Anwendung zur Georeferenzierung mit Kachelansicht, Karte (Leaflet/OSM), Referenzbild und Stapelspeicherung.
+- Bildeditor mit Zuschneiden, Text, GPS-Stempel, Verpixeln und einfacher Temp-Datei-Versionierung.
+- â€žGPS auf alle Bilder anwendenâ€œ mit Kartensynchronisation.
+- Thumbnail-Caching und asynchrones Laden.
+- Open-Source-`SimpleColorPicker` statt einer externen ColorPicker-Komponente.
+- In-App-Lizenzfenster und erste Lizenzdateien.
+- GitHub-Release-Workflow fÃ¼r `win-x64` und `win-arm64`.
 
-### 8) Weitere Fix-Logs (zusätzliche Fix-Dateien)
-- `BUGFIXES_COLOR_AND_HERO.md` — Sammlung von Farb- und Hero-Bugfixes (siehe Datei)
-- `COLORPICKER_NULL_FIX_FINAL.md` — Fix für ColorPicker-Nullfälle
-- `FINALE_FIXES_THUMBNAIL_COLORPICKER.md` — Finale Fixes im Zusammenspiel Thumbnail / ColorPicker
-
----
-
-## Implementierung / Konzepte
-
-### 1) `IMPLEMENTATION_OPTIONS.md` — Optionen und empfohlenes Vorgehen
-- Enthält drei vorgeschlagene Lösungswege (erweiterte In-App-Implementierung, Integration externer Editoren, kommerzielle Komponenten) und eine Empfehlung (Option A: pragmatische erweiterte Version).
-- Pfad: `IMPLEMENTATION_OPTIONS.md`
-
-### 2) `IMPLEMENTATION_TODO.md` — Konkrete TODO-Liste
-- Liste der noch zu implementierenden UI- und Feature-Punkte (Tooltips, LargePreview, OutputFolder UI, Edit-Integration, AppSettings etc.).
-- Pfad: `IMPLEMENTATION_TODO.md`
-
-### 3) `NEUKONZEPTION_README.md` — Neukonzeption & Feature-Übersicht
-- Größere konzeptionelle Änderungen: Kachelansicht, Marker auf Karte, Raster, verbesserte UX, Drag & Drop, verbesserte Thumbnail- und Editor-Strategien.
-- Pfad: `NEUKONZEPTION_README.md`
-
----
-
-## Wie dieses Changelog zu verwenden ist
-
-- Dieses Dokument dient als Einstiegspunkt. Für Implementierungsdetails, Beispielcode und genaue Patch-Beschreibungen öffnen Sie bitte die verlinkten Dateien.
-- Wenn Sie einen bestimmten Fix auditieren oder in den Code übernehmen möchten, kopieren Sie die relevanten Code-Snippets aus der jeweiligen Datei (z. B. `FINAL_IMAGE_LOADING_FIX.md`) und führen Sie die Änderungen lokal in den betroffenen `.cs`-Dateien aus.
-
----
-
-## Empfehlung / Nächste Schritte
-
-1. Entscheiden Sie, ob die in den Fixes vorgeschlagenen Codeänderungen bereits in `ImageService` / `OptimizedImageService` und `ImageEditorWindow` implementiert sind. Falls nicht, mache ich gern einen PR, der die relevanten Änderungen in die Quellcode-Dateien überträgt.
-
-2. Konsolidieren Sie die Dokumente (optional): Wenn gewünscht kann ich alle Details vollständig in dieses `changelog.md` hinein kopieren (vollständiger Text jeder Datei). Aktuell sind hier Zusammenfassungen und Verweise auf die Originaldateien enthalten, um Redundanz zu vermeiden.
-
-3. CI / Release: Nutzen Sie dieses Changelog als Grundlage für Release Notes. Ich kann daraus auch automatisch eine Release-Notes-Datei im gewünschten Format erzeugen.
-
----
-
-Falls du möchtest, kann ich jetzt:
-- die vollständigen Inhalte aller Fix- und Implementationsdateien in `changelog.md` injizieren (eine große, vollständige Zusammenführung), oder
-- direkt die jeweils empfohlenen Code-Änderungen in den Quellcode-Dateien anwenden (z. B. Änderungen an `ImageService` / `OptimizedImageService` / `ImageEditorWindow`).
-
-Sag mir kurz, welche der beiden Optionen du bevorzugst (komplette Einfügung aller Inhalte vs. weiter Zusammenfassung + Links).
+Mehrere Fehler dieser Phase wurden damals in einzelnen `*_FIX.md`-Dateien beschrieben. Diese Dateien sind nicht mehr im Repository; die betroffenen Stellen (Bildanzeige nach Ã„nderungen, Thumbnails, Editor-Laden, Scrollposition) wurden mit Version 1.1.0 durch `EditorSession` und `ImageService` ersetzt.

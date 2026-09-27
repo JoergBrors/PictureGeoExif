@@ -71,7 +71,7 @@ namespace PictureExifclone.Controls
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Fehler beim ColorPicker: {ex.Message}");
-                MessageBox.Show($"Fehler beim Ausw‰hlen der Farbe: {ex.Message}", "Fehler", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show($"Fehler beim Ausw√§hlen der Farbe: {ex.Message}", "Fehler", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
 
@@ -98,7 +98,7 @@ namespace PictureExifclone.Controls
         public ColorPickerDialog(Color initialColor)
         {
             SelectedColor = initialColor;
-            Title = "Farbe ausw‰hlen";
+            Title = "Farbe ausw√§hlen";
             Width = 350;
             Height = 250;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;

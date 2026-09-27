@@ -1,6 +1,6 @@
 # KI-Metadaten: Fenster, Batch, Chat und JSON-Vorlagen
 
-Stand: 27.09.2026. Ergänzung zum [Modernisierungsplan](GUI-AI-Update-Plan.md), Branch `GUI-AI-Update`. Dies ist der konkrete Implementierungsentwurf mit maschinenlesbaren Beispielen; Provider-Anbindung und WPF-Fenster sind noch nicht implementiert. Es wurden keine Bilder hochgeladen, keine kostenpflichtigen Modellaufrufe ausgeführt und keine Cloudressourcen angelegt.
+Stand: 27.09.2026. Ergänzung zum [Modernisierungsplan](GUI-AI-Update-Plan.md), Branch `GUI-AI-Update`. Konkreter Implementierungsentwurf mit maschinenlesbaren Beispielen. Der Umsetzungsstand steht im Hauptplan, Abschnitt 10; noch offen sind nativer Provider-Batch, LearningOptOutIn-Decodierung/-Schreiben und eingebettetes XMP. Es wurden keine Bilder hochgeladen, keine kostenpflichtigen Modellaufrufe ausgeführt und keine Cloudressourcen angelegt.
 
 ## Ziel und Beispieldateien
 
@@ -10,7 +10,7 @@ Das eigene Fenster „KI-Metadaten“ analysiert ausgewählte Bilder einzeln ode
 - [Schema der erwarteten Modellantwort](examples/ai-metadata.response.schema.json)
 - [Fiktive Beispielantwort](examples/ai-metadata.response.example.json), keine tatsächlich durchgeführte Bildanalyse
 
-Die Vorlage ist ein **anwendungseigenes Konfigurationsformat**, kein direkt an einen Anbieter sendbarer API-Request. Die Anwendung erstellt daraus kurze Prompts, das Antwortschema und anbieterspezifische Requests. Kosten-, Schreib- und Rechtekonfiguration bleiben lokal. `credential-manager:` ist eine geplante lokale Credential-Referenz, kein API-Schlüssel oder standardisiertes Cloudformat. Azure-Endpoint und Deployment werden aus den benannten Einstellungen/Umgebungsvariablen aufgelöst.
+Die Vorlage ist ein **anwendungseigenes Konfigurationsformat**, kein direkt an einen Anbieter sendbarer API-Request. Die Anwendung erstellt daraus kurze Prompts, das Antwortschema und anbieterspezifische Requests. Kosten-, Schreib- und Rechtekonfiguration bleiben lokal. `credential-manager:` verweist auf einen Eintrag in der Windows-Anmeldeinformationsverwaltung (umgesetzt in `Services/CredentialStore.cs`), nicht auf einen API-Schlüssel oder ein standardisiertes Cloudformat. Azure-Endpoint und Deployment werden aus den benannten Einstellungen/Umgebungsvariablen aufgelöst.
 
 Das Beispiel verwendet die OpenAI API mit dem Profil `openai-economy` und `gpt-5-mini` als Standard. Azure und Gemini bleiben auswählbare Alternativen. „gpt5-minin“ wird als dieses Modell interpretiert. Azure erwartet im Request den tatsächlichen **Deployment-Namen**, nicht zwangsläufig den Modellnamen. Dieser ist noch nicht bekannt. Für die Dokumentationsarbeit war keine Anmeldung erforderlich; der Foundry-Skill-Prüflauf meldete ein fehlendes `azd`. Das betrifft spätere Deployment-Workflows, nicht diese API-Planung; es wurde dafür nichts installiert.
 
