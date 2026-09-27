@@ -1,6 +1,6 @@
 # Drittanbieter-Lizenzen und Einsatz im Unternehmen
 
-Stand: 27.09.2026 · PictureGeoExif (PictureExifclone) 1.1.0 · Zielplattform .NET 10 / Windows 10 1809+
+Stand: 27.09.2026 · PictureGeoExif (PictureExifclone) 0.96 · Zielplattform .NET 10 / Windows 10 1809+
 
 Diese Datei listet alle Komponenten Dritter, die mit der Anwendung ausgeliefert oder zur Laufzeit genutzt werden, einschließlich transitiver Abhängigkeiten. Die vollständigen Lizenztexte liegen im Ordner `licenses/`. Die maschinenlesbare Liste steht in `licenses/dependency-licenses-summary.json`. Beide werden mit `scripts/Update-ThirdPartyLicenses.ps1` direkt aus den NuGet-Paketen erzeugt, nicht aus Webseiten.
 

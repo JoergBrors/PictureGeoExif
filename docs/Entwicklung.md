@@ -60,7 +60,7 @@ Regeln:
 Ein Release entsteht durch Tag und Push:
 
 ```powershell
-git tag v1.1.0; git push origin v1.1.0
+git tag v0.96; git push origin v0.96   # Version vorher im csproj (<Version>) anheben
 ```
 
 Der ARM64-Build wird in der CI nur kompiliert. Ob er zur Laufzeit funktioniert, muss auf ARM64-Hardware geprüft werden.

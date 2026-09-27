@@ -69,7 +69,7 @@ namespace PictureExifclone
                 var environment = await CoreWebView2Environment.CreateAsync(null, profile);
                 if (windowClosed) return;
                 await MapWebView.EnsureCoreWebView2Async(environment);
-                MapWebView.CoreWebView2.Settings.UserAgent += " PictureGeoExif/1.1 (+https://github.com/JoergBrors/PictureGeoExif)";
+                MapWebView.CoreWebView2.Settings.UserAgent += " " + AppInfo.UserAgent;
                 MapWebView.CoreWebView2.SetVirtualHostNameToFolderMapping("picturegeoexif.local", Path.Combine(AppContext.BaseDirectory,"Resources"), CoreWebView2HostResourceAccessKind.DenyCors);
                 MapWebView.CoreWebView2.WebMessageReceived += CoreWebView2_WebMessageReceived;
                 MapWebView.CoreWebView2.NavigationStarting += (_, e) => { if (!e.Uri.StartsWith(MapOrigin + "/", StringComparison.Ordinal)) e.Cancel = true; };

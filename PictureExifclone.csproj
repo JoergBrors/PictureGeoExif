@@ -13,7 +13,7 @@
     <Company>Jörg Brors</Company>
     <Product>PictureGeoExif</Product>
     <Copyright>Copyright © 2026 Jörg Brors</Copyright>
-    <Version>1.1.0</Version>
+    <Version>0.96.0</Version>
   </PropertyGroup>
 
   <ItemGroup>

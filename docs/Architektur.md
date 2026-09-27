@@ -95,7 +95,7 @@ flowchart LR
 | Kein Teilzustand auf der Platte | `AtomicFile.Write`: temporäre Datei im Zielordner, `File.Replace`/`File.Move` |
 | Kein stilles Überschreiben | `AtomicFile.ExportPath`: Zeitstempel mit Millisekunden plus GUID; `overwrite: false` |
 | Karte isoliert | Virtual Host nur für `Resources/`, CSP, Navigation nur auf eigenen Ursprung, externe Links nur OSM/Leaflet/Attribution im Systembrowser, Webnachrichten typisiert und validiert |
-| Keine Fremdidentität | OSM-Anfragen mit echtem WebView2-User-Agent plus `PictureGeoExif/1.1 (+Repo-URL)` |
+| Keine Fremdidentität | OSM-Anfragen mit echtem WebView2-User-Agent plus `PictureGeoExif/<Version> (+Repo-URL)` (`Services/AppInfo.cs`) |
 | KI-Daten minimieren | Vorschau ohne Metadaten; Datum ohne Uhrzeit; Hemisphäre statt GPS; keine Pfade oder Seriennummern; Metadaten ausdrücklich als „nicht vertrauenswürdige Daten“ gekennzeichnet |
 | Modell schreibt nichts direkt | Antworten sind strikt typisiert; der Chat hat nur drei Aktionen; übernommen wird nur nach Review |
 | Rechte nie raten | Das Antwortschema hat keine Rechtefelder; Vorlagen mit `allowModelInference: true` werden abgelehnt; `LearningOptOutIn` wird nicht geschrieben |

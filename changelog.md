@@ -2,7 +2,7 @@
 
 Alle nennenswerten Änderungen an PictureGeoExif. Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/). Versionen entsprechen den Git-Tags.
 
-## [1.1.0] – unveröffentlicht (Branch `GUI-AI-Update`)
+## [0.96] – 2026-09-27
 
 Details und Nachweise: [docs/GUI-AI-Update-Plan.md](docs/GUI-AI-Update-Plan.md), Abschnitt 10.
 
@@ -76,4 +76,4 @@ Frühere Stände sind über die Git-Tags `0.6`, `0.8`, `v0.9`, `v0.92` und `v0.9
 - In-App-Lizenzfenster und erste Lizenzdateien.
 - GitHub-Release-Workflow für `win-x64` und `win-arm64`.
 
-Mehrere Fehler dieser Phase wurden damals in einzelnen `*_FIX.md`-Dateien beschrieben. Diese Dateien sind nicht mehr im Repository; die betroffenen Stellen (Bildanzeige nach Änderungen, Thumbnails, Editor-Laden, Scrollposition) wurden mit Version 1.1.0 durch `EditorSession` und `ImageService` ersetzt.
+Mehrere Fehler dieser Phase wurden damals in einzelnen `*_FIX.md`-Dateien beschrieben. Diese Dateien sind nicht mehr im Repository; die betroffenen Stellen (Bildanzeige nach Änderungen, Thumbnails, Editor-Laden, Scrollposition) wurden mit Version 0.96 durch `EditorSession` und `ImageService` ersetzt.

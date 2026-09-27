@@ -29,7 +29,7 @@ public static class AiProviderFactory
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(120) };
     private static readonly TokenCredential AzureCredential = new DefaultAzureCredential(new DefaultAzureCredentialOptions { ExcludeInteractiveBrowserCredential = false });
 
-    static AiProviderFactory() => Http.DefaultRequestHeaders.UserAgent.ParseAdd("PictureGeoExif/1.1");
+    static AiProviderFactory() => Http.DefaultRequestHeaders.UserAgent.ParseAdd(AppInfo.UserAgent);
 
     public static IAiMetadataProvider Create(AiProviderProfile profile, int maxAttempts)
     {
