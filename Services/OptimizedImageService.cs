@@ -19,10 +19,10 @@ namespace PictureExifclone.Services
         private readonly string tempFolder;
         private bool disposed = false;
         
-        // Cache für Thumbnails (WeakReference ermöglicht GC bei Speicherdruck)
+        // Cache fÃ¼r Thumbnails (WeakReference ermÃ¶glicht GC bei Speicherdruck)
         private readonly ConcurrentDictionary<string, WeakReference<BitmapImage>> thumbnailCache = new();
         
-        // SemaphoreSlim für Thread-sichere Thumbnail-Erstellung
+        // SemaphoreSlim fÃ¼r Thread-sichere Thumbnail-Erstellung
         private readonly ConcurrentDictionary<string, SemaphoreSlim> thumbnailLocks = new();
 
         public OptimizedImageService()
@@ -39,7 +39,7 @@ namespace PictureExifclone.Services
             if (disposed || string.IsNullOrEmpty(imagePath) || !File.Exists(imagePath))
                 return null;
 
-            // Prüfe Cache zuerst
+            // PrÃ¼fe Cache zuerst
             if (thumbnailCache.TryGetValue(imagePath, out var weakRef))
             {
                 if (weakRef.TryGetTarget(out var cachedThumbnail))
@@ -50,7 +50,7 @@ namespace PictureExifclone.Services
                 thumbnailCache.TryRemove(imagePath, out _);
             }
 
-            // Hole Lock für diesen spezifischen Pfad
+            // Hole Lock fÃ¼r diesen spezifischen Pfad
             var semaphore = thumbnailLocks.GetOrAdd(imagePath, _ => new SemaphoreSlim(1, 1));
             
             await semaphore.WaitAsync();
@@ -78,7 +78,7 @@ namespace PictureExifclone.Services
             {
                 semaphore.Release();
                 
-                // Cleanup: Entferne Lock wenn nicht mehr benötigt
+                // Cleanup: Entferne Lock wenn nicht mehr benÃ¶tigt
                 if (semaphore.CurrentCount == 1)
                 {
                     thumbnailLocks.TryRemove(imagePath, out _);
@@ -87,7 +87,7 @@ namespace PictureExifclone.Services
         }
 
         /// <summary>
-        /// Synchrone Version für Kompatibilität
+        /// Synchrone Version fÃ¼r KompatibilitÃ¤t
         /// </summary>
         public BitmapImage? CreateThumbnail(string imagePath, int maxWidth = 200)
         {
@@ -116,7 +116,7 @@ namespace PictureExifclone.Services
                         }));
                     }
                     
-                    // Reduziere JPEG-Qualität für Thumbnails (von 85 auf 75)
+                    // Reduziere JPEG-QualitÃ¤t fÃ¼r Thumbnails (von 85 auf 75)
                     image.SaveAsJpeg(thumbnailPath, new JpegEncoder { Quality = 75 });
                 }
 
@@ -138,7 +138,7 @@ namespace PictureExifclone.Services
         }
 
         /// <summary>
-        /// Lädt mehrere Thumbnails parallel
+        /// LÃ¤dt mehrere Thumbnails parallel
         /// </summary>
         public async Task<BitmapImage?[]> CreateThumbnailsBatchAsync(string[] imagePaths, int maxWidth = 200)
         {
@@ -147,7 +147,7 @@ namespace PictureExifclone.Services
         }
 
         /// <summary>
-        /// Löscht Cache für einen spezifischen Pfad
+        /// LÃ¶scht Cache fÃ¼r einen spezifischen Pfad
         /// </summary>
         public void InvalidateThumbnailCache(string imagePath)
         {
@@ -155,7 +155,7 @@ namespace PictureExifclone.Services
         }
 
         /// <summary>
-        /// Löscht kompletten Thumbnail-Cache
+        /// LÃ¶scht kompletten Thumbnail-Cache
         /// </summary>
         public void ClearThumbnailCache()
         {
@@ -240,7 +240,7 @@ namespace PictureExifclone.Services
             }
             catch (Exception ex)
             {
-                throw new IOException($"Fehler beim Erstellen der temporären Kopie: {ex.Message}", ex);
+                throw new IOException($"Fehler beim Erstellen der temporÃ¤ren Kopie: {ex.Message}", ex);
             }
         }
 
@@ -291,7 +291,7 @@ namespace PictureExifclone.Services
                     }
                 }
 
-                // Cache für diesen Pfad invalidieren
+                // Cache fÃ¼r diesen Pfad invalidieren
                 InvalidateThumbnailCache(imagePath);
 
                 if (backupPath != null && File.Exists(backupPath))
@@ -337,7 +337,7 @@ namespace PictureExifclone.Services
                 throw new ArgumentException("Bilddaten sind leer", nameof(imageBytes));
             
             if (string.IsNullOrEmpty(originalFileName))
-                throw new ArgumentException("Dateiname ist ungültig", nameof(originalFileName));
+                throw new ArgumentException("Dateiname ist ungÃ¼ltig", nameof(originalFileName));
 
             try
             {
@@ -434,7 +434,7 @@ namespace PictureExifclone.Services
                 }
                 catch
                 {
-                    System.Diagnostics.Debug.WriteLine($"Warnung: Temporärer Ordner konnte nicht gelöscht werden: {tempFolder}");
+                    System.Diagnostics.Debug.WriteLine($"Warnung: TemporÃ¤rer Ordner konnte nicht gelÃ¶scht werden: {tempFolder}");
                 }
                 disposed = true;
             }

@@ -1,9 +1,7 @@
 using System.Collections.ObjectModel;
 using System.IO;
-using System.Text;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media.Imaging;
 using Microsoft.Win32;
 using MetadataExtractor;
 using MetadataExtractor.Formats.Exif;
@@ -12,12 +10,7 @@ using System.Linq;
 using PictureExifclone.Services;
 using PictureExifclone.Models;
 using System.Windows.Input;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Processing;
-using SixLabors.ImageSharp.Drawing.Processing;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.Fonts;
-using System.IO.Compression;
+using System.Globalization;
 
 namespace PictureExifclone
 {
@@ -51,6 +44,8 @@ namespace PictureExifclone
             
             Closed += (s, e) =>
             {
+                windowClosed = true;
+                MapWebView.Dispose();
                 imageService?.Dispose();
                 settings.Save();
             };
@@ -63,269 +58,94 @@ namespace PictureExifclone
             SaveAllButton.IsEnabled = images.Count > 0;
         }
 
+        private bool mapReady;
+        private bool windowClosed;
+        private const string MapOrigin = "https://picturegeoexif.local";
         private async void InitializeWebView()
         {
             try
             {
-                await MapWebView.EnsureCoreWebView2Async(null);
-                MapWebView.CoreWebView2.NavigateToString(GetLeafletHtml());
+                var profile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PictureGeoExif", "WebView2");
+                var environment = await CoreWebView2Environment.CreateAsync(null, profile);
+                if (windowClosed) return;
+                await MapWebView.EnsureCoreWebView2Async(environment);
+                MapWebView.CoreWebView2.Settings.UserAgent += " " + AppInfo.UserAgent;
+                MapWebView.CoreWebView2.SetVirtualHostNameToFolderMapping("picturegeoexif.local", Path.Combine(AppContext.BaseDirectory,"Resources"), CoreWebView2HostResourceAccessKind.DenyCors);
                 MapWebView.CoreWebView2.WebMessageReceived += CoreWebView2_WebMessageReceived;
+                MapWebView.CoreWebView2.NavigationStarting += (_, e) => { if (!e.Uri.StartsWith(MapOrigin + "/", StringComparison.Ordinal)) e.Cancel = true; };
+                MapWebView.CoreWebView2.NewWindowRequested += (_, e) =>
+                {
+                    e.Handled = true;
+                    if (Uri.TryCreate(e.Uri,UriKind.Absolute,out var uri) && uri.Scheme == "https" &&
+                        (uri.Host == "www.openstreetmap.org" || uri.Host == "leafletjs.com" ||
+                         (Uri.TryCreate(settings.TileAttributionUrl, UriKind.Absolute, out var attribution) && uri.Host == attribution.Host)))
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
+                };
+                MapWebView.CoreWebView2.WebResourceResponseReceived += (_, e) =>
+                {
+                    if (e.Response.StatusCode is 403 or 429) MapStatusText.Text = $"Kartenserver: HTTP {e.Response.StatusCode}. Bitte spÃ¤ter erneut versuchen oder Kartenanbieter in den Einstellungen wechseln.";
+                };
+                MapWebView.CoreWebView2.Navigate(MapOrigin + "/map.html");
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Fehler beim Initialisieren der Karte: {ex.Message}", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+            catch (Exception ex) { MapStatusText.Text = "Karte nicht verfÃ¼gbar (WebView2 Runtime prÃ¼fen): " + ex.Message; }
         }
 
-        private void CoreWebView2_WebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
+        private async void CoreWebView2_WebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
         {
+            if (!e.Source.StartsWith(MapOrigin + "/",StringComparison.Ordinal)) return;
             try
             {
-                var message = e.TryGetWebMessageAsString();
-
-                // Handle marker selection messages from the webview (format: "select:ID")
-                if (!string.IsNullOrEmpty(message) && message.StartsWith("select:"))
+                using var message = System.Text.Json.JsonDocument.Parse(e.WebMessageAsJson);
+                var data=message.RootElement;
+                switch (data.GetProperty("type").GetString())
                 {
-                    var idStr = message.Substring("select:".Length);
-                    if (int.TryParse(idStr, out int idx))
-                    {
-                        // Run on UI thread
-                        Dispatcher.Invoke(() =>
-                        {
-                            if (idx >= 0 && idx < images.Count)
-                            {
-                                var imageItem = images[idx];
-
-                                if (selectedImage != null)
-                                    selectedImage.IsSelected = false;
-
-                                selectedImage = imageItem;
-                                selectedImage.IsSelected = true;
-
-                                // Scroll to the selected image in the list
-                                var itemsPanel = FindVisualChild<Panel>(ImageItemsControl);
-                                if (itemsPanel != null)
-                                {
-                                    var container = ImageItemsControl.ItemContainerGenerator.ContainerFromItem(imageItem);
-                                    if (container is FrameworkElement element)
-                                    {
-                                        element.BringIntoView();
-                                    }
-                                }
-
-                                if (selectedImage.HasGpsData)
-                                {
-                                    currentLatitude = selectedImage.Latitude!.Value;
-                                    currentLongitude = selectedImage.Longitude!.Value;
-                                    hasCoordinates = true;
-                                    CurrentGpsText.Text = $"Lat: {currentLatitude:F6}, Lng: {currentLongitude:F6}";
-                                }
-                                else
-                                {
-                                    hasCoordinates = false;
-                                    CurrentGpsText.Text = "Keine Koordinaten ausgewählt";
-                                }
-
-                                UpdateButtonStates();
-                            }
-                        });
-
-                        return;
-                    }
-                }
-
-                var parts = message.Split(',');
-                if (parts.Length == 2 &&
-                    double.TryParse(parts[0],
-                        System.Globalization.NumberStyles.Float,
-                        System.Globalization.CultureInfo.InvariantCulture,
-                        out double lat) &&
-                    double.TryParse(parts[1],
-                        System.Globalization.NumberStyles.Float,
-                        System.Globalization.CultureInfo.InvariantCulture,
-                        out double lng))
-                {
-                    currentLatitude = lat;
-                    currentLongitude = lng;
-                    hasCoordinates = true;
-                    CurrentGpsText.Text = $"Lat: {lat:F6}, Lng: {lng:F6}";
-                    UpdateButtonStates();
+                    case "ready":
+                        mapReady=true;
+                        await RunMapScriptAsync("configure(" + System.Text.Json.JsonSerializer.Serialize(new { url=settings.TileUrl, attribution=settings.TileAttribution, attributionUrl=settings.TileAttributionUrl }) + ");");
+                        UpdateAllMarkersOnMap(); UpdateMapGrid(); break;
+                    case "status": MapStatusText.Text=data.GetProperty("text").GetString(); break;
+                    case "select":
+                        int index=data.GetProperty("id").GetInt32();
+                        if(index<0 || index>=images.Count) return;
+                        SelectImage(images[index]); break;
+                    case "coordinates":
+                        double lat=data.GetProperty("lat").GetDouble(), lon=data.GetProperty("lng").GetDouble();
+                        if(!PixelGeometry.ValidGps(lat,lon)) return;
+                        currentLatitude=lat; currentLongitude=lon; hasCoordinates=true;
+                        CurrentGpsText.Text=$"Lat: {lat:F6}, Lng: {lon:F6}"; UpdateButtonStates(); break;
                 }
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Fehler beim Verarbeiten der Koordinaten: {ex.Message}", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+            catch (Exception ex) { MapStatusText.Text="UngÃ¼ltige Kartennachricht: " + ex.Message; }
         }
 
-        // Helper method to find visual child
-        private static T? FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
+        private async Task RunMapScriptAsync(string script)
         {
-            for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent); i++)
-            {
-                var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
-                if (child is T typedChild)
-                    return typedChild;
-
-                var result = FindVisualChild<T>(child);
-                if (result != null)
-                    return result;
-            }
-            return null;
+            if(!mapReady || windowClosed || MapWebView.CoreWebView2 == null) return;
+            try { await MapWebView.CoreWebView2.ExecuteScriptAsync(script); }
+            catch(Exception ex) { MapStatusText.Text="Karte: " + ex.Message; }
         }
 
-        private string GetLeafletHtml()
+        private void SelectImage(ImageItem item)
         {
-            var html = new StringBuilder();
-            html.AppendLine("<!DOCTYPE html>");
-            html.AppendLine("<html>");
-            html.AppendLine("<head>");
-            html.AppendLine("    <meta charset='utf-8'>");
-            html.AppendLine("    <meta name='viewport' content='width=device-width, initial-scale=1.0'>");
-            html.AppendLine("    <link rel='stylesheet' href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' />");
-            html.AppendLine("    <script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'></script>");
-            html.AppendLine("    <style>");
-            html.AppendLine("        body { margin: 0; padding: 0; }");
-            html.AppendLine("        #map { width: 100%; height: 100vh; }");
-            html.AppendLine("    </style>");
-            html.AppendLine("</head>");
-            html.AppendLine("<body>");
-            html.AppendLine("    <div id='map'></div>");
-            html.AppendLine("    <script>");
-            html.AppendLine("        var map = L.map('map').setView([51.1657, 10.4515], 6);");
-            html.AppendLine("        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {");
-            html.AppendLine("            attribution: '&copy; OpenStreetMap contributors',");
-            html.AppendLine("            maxZoom: 19");
-            html.AppendLine("        }).addTo(map);");
-            html.AppendLine("");
-            html.AppendLine("        var currentMarker = null;");
-            html.AppendLine("        var imageMarkers = [];");
-            html.AppendLine("        var selectedMarker = null;");
-            html.AppendLine("        var gridLayer = null;");
-            html.AppendLine("        var currentGridSize = 100;");
-            html.AppendLine("");
-            html.AppendLine("        var selectedIconSvg = 'PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSI0MiIgdmlld0JveD0iMCAwIDMyIDQyIj48cGF0aCBmaWxsPSIjMjE5NkYzIiBzdHJva2U9IiNGRkYiIHN0cm9rZS13aWR0aD0iMiIgZD0iTTE2IDBDOS40IDAgNCA1LjQgNCAxMmMwIDggMTIgMzAgMTIgMzBzMTItMjIgMTItMzBjMC02LjYtNS40LTEyLTEyLTEyeiIvPjxjaXJjbGUgY3g9IjE2IiBjeT0iMTIiIHI9IjYiIGZpbGw9IiNGRkYiLz48L3N2Zz4=';");
-            html.AppendLine("        var normalIconSvg = 'PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNSIgaGVpZ2h0PSIzNSIgdmlld0JveD0iMCAwIDI1IDM1Ij48cGF0aCBmaWxsPSIjNENBRjUwIiBzdHJva2U9IiNGRkYiIHN0cm9rZS13aWR0aD0iMiIgZD0iTTEyLjUgMEM3LjI1IDAgMyA0LjI1IDMgOS41YzAgNi4yNSA5LjUgMjMuNSA5LjUgMjMuNVMyMiAxNS43NSAyMiA5LjVDMjIgNC4yNSAxNy43NSAwIDEyLjUgMHoiLz48Y2lyY2xlIGN4PSIxMi41IiBjeT0iOS41IiByPSI0IiBmaWxsPSIjRkZGIi8+PC9zdmc+';");
-            html.AppendLine("        var clickIconSvg = 'PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNSIgaGVpZ2h0PSIzNSIgdmlld0JveD0iMCAwIDI1IDM1Ij48cGF0aCBmaWxsPSIjRkY1NzIyIiBzdHJva2U9IiNGRkYiIHN0cm9rZS13aWR0aD0iMiIgZD0iTTEyLjUgMEM3LjI1IDAgMyA0LjI1IDMgOS41YzAgNi4yNSA5LjUgMjMuNSA5LjUgMjMuNVMyMiAxNS43NSAyMiA5LjVDMjIgNC4yNSAxNy43NSAwIDEyLjUgMHoiLz48Y2lyY2xlIGN4PSIxMi41IiBjeT0iOS41IiByPSI0IiBmaWxsPSIjRkZGIi8+PC9zdmc+';");
-
-            html.AppendLine("");
-            html.AppendLine("        var selectedIcon = L.icon({");
-            html.AppendLine("            iconUrl: 'data:image/svg+xml;base64,' + selectedIconSvg,");
-            html.AppendLine("            iconSize: [32, 42],");
-            html.AppendLine("            iconAnchor: [16, 42],");
-            html.AppendLine("            popupAnchor: [0, -42]");
-            html.AppendLine("        });");
-            html.AppendLine("");
-            html.AppendLine("        var normalIcon = L.icon({");
-            html.AppendLine("            iconUrl: 'data:image/svg+xml;base64,' + normalIconSvg,");
-            html.AppendLine("            iconSize: [25, 35],");
-            html.AppendLine("            iconAnchor: [12.5, 35],");
-            html.AppendLine("            popupAnchor: [0, -35]");
-            html.AppendLine("        });");
-            html.AppendLine("");
-            html.AppendLine("        var clickIcon = L.icon({");
-            html.AppendLine("            iconUrl: 'data:image/svg+xml;base64,' + clickIconSvg,");
-            html.AppendLine("            iconSize: [25, 35],");
-            html.AppendLine("            iconAnchor: [12.5, 35],");
-            html.AppendLine("            popupAnchor: [0, -35]");
-            html.AppendLine("        });");
-            html.AppendLine("");
-            html.AppendLine("        map.on('click', function(e) {");
-            html.AppendLine("            var lat = e.latlng.lat;");
-            html.AppendLine("            var lng = e.latlng.lng;");
-            html.AppendLine("            if (currentMarker) { map.removeLayer(currentMarker); }");
-            html.AppendLine("            currentMarker = L.marker([lat, lng], { icon: clickIcon }).addTo(map);");
-            html.AppendLine("            currentMarker.bindPopup('<b>Neue Koordinaten:</b><br>Lat: ' + lat.toFixed(6) + '<br>Lng: ' + lng.toFixed(6)).openPopup();");
-            html.AppendLine("            window.chrome.webview.postMessage(lat + ',' + lng);");
-            html.AppendLine("        });");
-            html.AppendLine("");
-            html.AppendLine("        function addImageMarkers(markers) {");
-            html.AppendLine("            imageMarkers.forEach(m => map.removeLayer(m));");
-            html.AppendLine("            imageMarkers = [];");
-            html.AppendLine("            markers.forEach(function(m) {");
-            html.AppendLine("                var marker = L.marker([m.lat, m.lng], { icon: normalIcon }).addTo(map);");
-            html.AppendLine("                marker.bindPopup('<b>' + m.name + '</b><br>Lat: ' + m.lat.toFixed(6) + '<br>Lng: ' + m.lng.toFixed(6));");
-            html.AppendLine("                marker.imageId = m.id;");
-            // add click handler to send selection message back to host and visually select the marker
-            html.AppendLine("                marker.on('click', function(e) {");
-            html.AppendLine("                    try {");
-            html.AppendLine("                        setSelectedMarker(m.lat, m.lng, m.name);");
-            html.AppendLine("                        window.chrome.webview.postMessage('select:' + m.id);");
-            html.AppendLine("                    } catch (err) { console.error(err); }");
-            html.AppendLine("                });");
-            html.AppendLine("                imageMarkers.push(marker);");
-            html.AppendLine("            });");
-            html.AppendLine("            if (markers.length > 0) {");
-            html.AppendLine("                var group = new L.featureGroup(imageMarkers);");
-            html.AppendLine("                map.fitBounds(group.getBounds().pad(0.1));");
-            html.AppendLine("            }");
-            html.AppendLine("        }");
-            html.AppendLine("");
-            html.AppendLine("        function setSelectedMarker(lat, lng, name) {");
-            html.AppendLine("            if (selectedMarker) { map.removeLayer(selectedMarker); }");
-            html.AppendLine("            selectedMarker = L.marker([lat, lng], { icon: selectedIcon }).addTo(map);");
-            html.AppendLine("            selectedMarker.bindPopup('<b>Ausgewählt:</b><br>' + name + '<br>Lat: ' + lat.toFixed(6) + '<br>Lng: ' + lng.toFixed(6)).openPopup();");
-            html.AppendLine("            map.setView([lat, lng], Math.max(map.getZoom(), 13));");
-            html.AppendLine("        }");
-            html.AppendLine("");
-            html.AppendLine("        function clearSelectedMarker() {");
-            html.AppendLine("            if (selectedMarker) { map.removeLayer(selectedMarker); selectedMarker = null; }");
-            html.AppendLine("        }");
-            html.AppendLine("");
-            html.AppendLine("        function updateGrid(enabled, size) {");
-            html.AppendLine("            if (gridLayer) { map.removeLayer(gridLayer); gridLayer = null; }");
-            html.AppendLine("            if (!enabled) return;");
-            html.AppendLine("            currentGridSize = size;");
-            html.AppendLine("            gridLayer = L.layerGroup();");
-            html.AppendLine("            var bounds = map.getBounds();");
-            html.AppendLine("            var metersPerDegree = 111000;");
-            html.AppendLine("            var gridSize = size / metersPerDegree;");
-            html.AppendLine("            var south = Math.floor(bounds.getSouth() / gridSize) * gridSize;");
-            html.AppendLine("            var north = Math.ceil(bounds.getNorth() / gridSize) * gridSize;");
-            html.AppendLine("            var west = Math.floor(bounds.getWest() / gridSize) * gridSize;");
-            html.AppendLine("            var east = Math.ceil(bounds.getEast() / gridSize) * gridSize;");
-            html.AppendLine("            for (var lat = south; lat <= north; lat += gridSize) {");
-            html.AppendLine("                for (var lng = west; lng <= east; lng += gridSize) {");
-            html.AppendLine("                    var rectBounds = [[lat, lng], [lat + gridSize, lng + gridSize]];");
-            html.AppendLine("                    L.rectangle(rectBounds, {");
-            html.AppendLine("                        color: '#2196F3',");
-            html.AppendLine("                        weight: 1,");
-            html.AppendLine("                        fillOpacity: 0.05,");
-            html.AppendLine("                        fillColor: '#2196F3'");
-            html.AppendLine("                    }).addTo(gridLayer);");
-            html.AppendLine("                }");
-            html.AppendLine("            }");
-            html.AppendLine("            gridLayer.addTo(map);");
-            html.AppendLine("        }");
-            html.AppendLine("");
-            html.AppendLine("        map.on('moveend', function() {");
-            html.AppendLine("            if (gridLayer) { updateGrid(true, currentGridSize); }");
-            html.AppendLine("        });");
-            html.AppendLine("    </script>");
-            html.AppendLine("</body>");
-            html.AppendLine("</html>");
-
-            return html.ToString();
+            if(selectedImage != null) selectedImage.IsSelected=false;
+            selectedImage=item; item.IsSelected=true;
+            hasCoordinates=item.HasGpsData;
+            if(hasCoordinates) { currentLatitude=item.Latitude!.Value; currentLongitude=item.Longitude!.Value; CurrentGpsText.Text=$"Lat: {currentLatitude:F6}, Lng: {currentLongitude:F6}"; }
+            else CurrentGpsText.Text="Keine Koordinaten ausgewÃ¤hlt";
+            _ = RunMapScriptAsync(hasCoordinates
+                ? $"setSelectedMarker({Js(currentLatitude)},{Js(currentLongitude)},{System.Text.Json.JsonSerializer.Serialize(item.FileName)});"
+                : "clearSelectedMarker();");
+            UpdateButtonStates();
+            if(ImageItemsControl.ItemContainerGenerator.ContainerFromItem(item) is FrameworkElement element) element.BringIntoView();
         }
+
+        private static string Js(double value) => value.ToString("R", CultureInfo.InvariantCulture);
 
         private void UpdateAllMarkersOnMap()
         {
-            var markersData = images
-                .Where(img => img.HasGpsData)
-                .Select((img, index) => new {
-                    id = index,
-                    lat = img.Latitude!.Value,
-                    lng = img.Longitude!.Value,
-                    name = img.FileName
-                })
-                .ToList();
-
-            if (markersData.Any())
-            {
-                var json = System.Text.Json.JsonSerializer.Serialize(markersData);
-                string script = $"addImageMarkers({json});";
-                MapWebView.CoreWebView2?.ExecuteScriptAsync(script);
-            }
+            var data=images.Select((img,index)=>new { id=index, lat=img.Latitude, lng=img.Longitude, name=img.FileName })
+                .Where(x=>x.lat.HasValue && x.lng.HasValue && PixelGeometry.ValidGps(x.lat.Value,x.lng.Value));
+            _ = RunMapScriptAsync("addImageMarkers(" + System.Text.Json.JsonSerializer.Serialize(data) + ");");
         }
 
         private void Window_Drop(object sender, DragEventArgs e)
@@ -356,7 +176,7 @@ namespace PictureExifclone
             {
                 Filter = "Bilddateien|*.jpg;*.jpeg;*.png;*.bmp;*.tif;*.tiff|Alle Dateien|*.*",
                 Multiselect = true,
-                Title = "Bilder auswählen"
+                Title = "Bilder auswÃ¤hlen"
             };
 
             if (openFileDialog.ShowDialog() == true)
@@ -365,7 +185,7 @@ namespace PictureExifclone
             }
         }
 
-        private void LoadImages(string[] filePaths)
+        private async void LoadImages(string[] filePaths)
         {
             int loadedCount = 0;
             foreach (var filePath in filePaths)
@@ -387,20 +207,20 @@ namespace PictureExifclone
                         // Thumbnail erstellen mit Fehlerbehandlung (jetzt cached)
                         try
                         {
-                            imageItem.Thumbnail = imageService.CreateThumbnail(filePath);
+                            imageItem.Thumbnail = await imageService.CreateThumbnailAsync(filePath);
                             
                             if (imageItem.Thumbnail == null)
                             {
-                                System.Diagnostics.Debug.WriteLine($"Thumbnail ist NULL für: {Path.GetFileName(filePath)}");
+                                System.Diagnostics.Debug.WriteLine($"Thumbnail ist NULL fÃ¼r: {Path.GetFileName(filePath)}");
                             }
                         }
                         catch (Exception thumbEx)
                         {
-                            System.Diagnostics.Debug.WriteLine($"Fehler beim Erstellen des Thumbnails für {Path.GetFileName(filePath)}: {thumbEx.Message}");
+                            System.Diagnostics.Debug.WriteLine($"Fehler beim Erstellen des Thumbnails fÃ¼r {Path.GetFileName(filePath)}: {thumbEx.Message}");
                             // Weiter ohne Thumbnail
                         }
 
-                        ReadExifData(imageItem);
+                        await Task.Run(() => ReadExifData(imageItem));
                         images.Add(imageItem);
                         loadedCount++;
                     }
@@ -428,7 +248,7 @@ namespace PictureExifclone
                 var directories = ImageMetadataReader.ReadMetadata(imageItem.FilePath);
                 var gpsDirectory = directories.OfType<GpsDirectory>().FirstOrDefault();
 
-                if (gpsDirectory != null && gpsDirectory.TryGetGeoLocation(out var location) && location != null)
+                if (gpsDirectory != null && gpsDirectory.TryGetGeoLocation(out var location))
                 {
                     imageItem.Latitude = location.Latitude;
                     imageItem.Longitude = location.Longitude;
@@ -443,33 +263,7 @@ namespace PictureExifclone
         private void ImageTile_Click(object sender, MouseButtonEventArgs e)
         {
             if (sender is Border border && border.DataContext is ImageItem imageItem)
-            {
-                if (selectedImage != null)
-                {
-                    selectedImage.IsSelected = false;
-                }
-
-                selectedImage = imageItem;
-                selectedImage.IsSelected = true;
-
-                if (selectedImage.HasGpsData)
-                {
-                    currentLatitude = selectedImage.Latitude!.Value;
-                    currentLongitude = selectedImage.Longitude!.Value;
-                    hasCoordinates = true;
-                    CurrentGpsText.Text = $"Lat: {currentLatitude:F6}, Lng: {currentLongitude:F6}";
-
-                    string script = $"setSelectedMarker({currentLatitude.ToString(System.Globalization.CultureInfo.InvariantCulture)}, {currentLongitude.ToString(System.Globalization.CultureInfo.InvariantCulture)}, '{selectedImage.FileName.Replace("'", "\\'")}');";
-                    MapWebView.CoreWebView2?.ExecuteScriptAsync(script);
-                }
-                else
-                {
-                    string script = "clearSelectedMarker();";
-                    MapWebView.CoreWebView2?.ExecuteScriptAsync(script);
-                }
-
-                UpdateButtonStates();
-            }
+                SelectImage(imageItem);
         }
 
         private void UpdateButtonStates()
@@ -485,7 +279,7 @@ namespace PictureExifclone
                 ApplyGpsButton.IsEnabled = hasSelection && hasCoordinates;
         }
 
-        private void EditImage_Click(object sender, RoutedEventArgs e)
+        private async void EditImage_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button button && button.Tag is ImageItem imageItem)
             {
@@ -506,33 +300,33 @@ namespace PictureExifclone
                         {
                             imageService.InvalidateThumbnailCache(imageItem.FilePath);
                             imageItem.Thumbnail = null;
-                            GC.Collect();
-                            GC.WaitForPendingFinalizers();
+    
                         }
 
                         string newPath = imageService.SaveEditedImage(
                             editor.EditedImageBytes,
-                            imageItem.FileName,
+                            Path.ChangeExtension(imageItem.FileName, editor.EditedExtension),
                             settings.OutputFolder);
 
-                        if (imageItem.HasGpsData)
+                        if (imageItem.HasGpsData && editor.EditedExtension is not ".bmp")
                         {
                             imageService.WriteGpsToImage(newPath, imageItem.Latitude!.Value, imageItem.Longitude!.Value);
                         }
 
                         imageItem.FilePath = newPath;
                         
-                        System.Threading.Thread.Sleep(100);
+                        
                         
                         // Neues Thumbnail erstellen (wird automatisch gecached)
-                        imageItem.Thumbnail = imageService.CreateThumbnail(newPath);
+                        imageItem.Thumbnail = await imageService.CreateThumbnailAsync(newPath);
 
                         MessageBox.Show($"Bearbeitetes Bild gespeichert:\n{newPath}", "Erfolg", MessageBoxButton.OK, MessageBoxImage.Information);
                     }
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Fehler beim Bearbeiten: {ex.Message}\n\nDetails: {ex.StackTrace}", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
+                    System.Diagnostics.Debug.WriteLine(ex);
+                    MessageBox.Show($"Fehler beim Bearbeiten: {ex.Message}", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
         }
@@ -553,7 +347,7 @@ namespace PictureExifclone
                     string oldPath = img.FilePath;
                     string newPath = imageService.SaveSingleImage(img.FilePath, settings.OutputFolder, lat, lon);
 
-                    // Invalidiere Cache für alten Pfad
+                    // Invalidiere Cache fÃ¼r alten Pfad
                     imageService.InvalidateThumbnailCache(oldPath);
 
                     img.FilePath = newPath;
@@ -581,8 +375,8 @@ namespace PictureExifclone
             if (!hasCoordinates)
             {
                 var result = MessageBox.Show(
-                    "Sie haben keine GPS-Koordinaten ausgewählt. Möchten Sie die Bilder trotzdem speichern?",
-                    "Bestätigung", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                    "Sie haben keine GPS-Koordinaten ausgewÃ¤hlt. MÃ¶chten Sie die Bilder trotzdem speichern?",
+                    "BestÃ¤tigung", MessageBoxButton.YesNo, MessageBoxImage.Question);
 
                 if (result != MessageBoxResult.Yes)
                     return;
@@ -601,7 +395,7 @@ namespace PictureExifclone
                     string oldPath = img.FilePath;
                     string newPath = imageService.SaveSingleImage(img.FilePath, settings.OutputFolder, lat, lon);
 
-                    // Invalidiere Cache für alten Pfad
+                    // Invalidiere Cache fÃ¼r alten Pfad
                     imageService.InvalidateThumbnailCache(oldPath);
 
                     img.FilePath = newPath;
@@ -624,7 +418,7 @@ namespace PictureExifclone
             MessageBox.Show($"{savedCount} Bild(er) erfolgreich gespeichert!\n{errorCount} Fehler.",
                 "Fertig", MessageBoxButton.OK, MessageBoxImage.Information);
         }
-        private void SaveSingleImage_Click(object sender, RoutedEventArgs e)
+        private async void SaveSingleImage_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button button && button.Tag is ImageItem imageItem)
             {
@@ -636,7 +430,7 @@ namespace PictureExifclone
                     string oldPath = imageItem.FilePath;
                     string newPath = imageService.SaveSingleImage(imageItem.FilePath, settings.OutputFolder, lat, lon);
 
-                    // Invalidiere Cache für alten Pfad
+                    // Invalidiere Cache fÃ¼r alten Pfad
                     imageService.InvalidateThumbnailCache(oldPath);
                     
                     imageItem.FilePath = newPath;
@@ -645,7 +439,7 @@ namespace PictureExifclone
                         imageItem.Latitude = lat.Value;
                         imageItem.Longitude = lon.Value;
                     }
-                    imageItem.Thumbnail = imageService.CreateThumbnail(newPath);
+                    imageItem.Thumbnail = await imageService.CreateThumbnailAsync(newPath);
 
                     UpdateAllMarkersOnMap();
                     MessageBox.Show($"Bild gespeichert:\n{newPath}", "Erfolg", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -664,7 +458,7 @@ namespace PictureExifclone
             {
                 Filter = "Bilddateien|*.jpg;*.jpeg;*.png;*.bmp;*.tif;*.tiff|Alle Dateien|*.*",
                 Multiselect = false,
-                Title = "Referenzbild mit GPS-Daten auswählen"
+                Title = "Referenzbild mit GPS-Daten auswÃ¤hlen"
             };
 
             if (openFileDialog.ShowDialog() == true)
@@ -674,15 +468,14 @@ namespace PictureExifclone
                     var directories = ImageMetadataReader.ReadMetadata(openFileDialog.FileName);
                     var gpsDirectory = directories.OfType<GpsDirectory>().FirstOrDefault();
 
-                    if (gpsDirectory != null && gpsDirectory.TryGetGeoLocation(out var location) && location != null)
+                    if (gpsDirectory != null && gpsDirectory.TryGetGeoLocation(out var location))
                     {
                         currentLatitude = location.Latitude;
                         currentLongitude = location.Longitude;
                         hasCoordinates = true;
                         CurrentGpsText.Text = $"Lat: {location.Latitude:F6}, Lng: {location.Longitude:F6}";
 
-                        string script = $"if (currentMarker) {{ map.removeLayer(currentMarker); }} currentMarker = L.marker([{location.Latitude.ToString(System.Globalization.CultureInfo.InvariantCulture)}, {location.Longitude.ToString(System.Globalization.CultureInfo.InvariantCulture)}], {{ icon: clickIcon }}).addTo(map); map.setView([{location.Latitude.ToString(System.Globalization.CultureInfo.InvariantCulture)}, {location.Longitude.ToString(System.Globalization.CultureInfo.InvariantCulture)}], 13);";
-                        MapWebView.CoreWebView2?.ExecuteScriptAsync(script);
+                        _ = RunMapScriptAsync($"setCurrentMarker({Js(location.Latitude)},{Js(location.Longitude)});");
 
                         UpdateButtonStates();
                         MessageBox.Show("GPS-Koordinaten aus Referenzbild erfolgreich geladen!",
@@ -690,7 +483,7 @@ namespace PictureExifclone
                     }
                     else
                     {
-                        MessageBox.Show("Das Referenzbild enthält keine gültigen GPS-Daten.",
+                        MessageBox.Show("Das Referenzbild enthÃ¤lt keine gÃ¼ltigen GPS-Daten.",
                             "Fehler", MessageBoxButton.OK, MessageBoxImage.Warning);
                     }
                 }
@@ -715,7 +508,7 @@ namespace PictureExifclone
                             $"Das Bild '{selectedImage.FileName}' hat bereits GPS-Koordinaten:\n\n" +
                             $"Aktuell: Lat {selectedImage.Latitude:F6}, Lng {selectedImage.Longitude:F6}\n" +
                             $"Neu: Lat {currentLatitude:F6}, Lng {currentLongitude:F6}\n\n" +
-                            "Möchten Sie die vorhandenen Koordinaten ersetzen?",
+                            "MÃ¶chten Sie die vorhandenen Koordinaten ersetzen?",
                             "GPS-Daten ersetzen?",
                             MessageBoxButton.YesNo,
                             MessageBoxImage.Question);
@@ -732,7 +525,7 @@ namespace PictureExifclone
                         currentLatitude,
                         currentLongitude);
 
-                    // Invalidiere Cache für alten Pfad
+                    // Invalidiere Cache fÃ¼r alten Pfad
                     imageService.InvalidateThumbnailCache(oldPath);
                     
                     selectedImage.FilePath = newPath;
@@ -757,7 +550,7 @@ namespace PictureExifclone
             if (sender is Button button && button.Tag is ImageItem imageItem)
             {
                 var result = MessageBox.Show(
-                    $"Möchten Sie '{imageItem.FileName}' aus der Liste entfernen?\n\n(Die Datei wird nicht gelöscht)",
+                    $"MÃ¶chten Sie '{imageItem.FileName}' aus der Liste entfernen?\n\n(Die Datei wird nicht gelÃ¶scht)",
                     "Bild entfernen",
                     MessageBoxButton.YesNo,
                     MessageBoxImage.Question);
@@ -777,54 +570,25 @@ namespace PictureExifclone
 
         private void ClearAllButton_Click(object sender, RoutedEventArgs e)
         {
-            if (images.Count > 0)
-            {
+            if (images.Count == 0) return;
+            var result = MessageBox.Show(
+                $"MÃ¶chten Sie alle {images.Count} Bilder aus der Liste entfernen?\n\n(Die Dateien werden nicht gelÃ¶scht)",
+                "Alle entfernen",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+            if (result != MessageBoxResult.Yes) return;
 
-                var result = MessageBox.Show(
-                    $"Möchten Sie alle {images.Count} Bilder aus der Liste entfernen?\n\n(Die Dateien werden nicht gelöscht)",
-                    "Alle entfernen",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question);
-                if (result == MessageBoxResult.Yes) {
-                    selectedImage = null;
-                    images.Clear();
-                }
-            }   
-            
-            
-            // Remove markers in the map (safely) and clear selected/current markers
-            try
-            {
-                if (MapWebView?.CoreWebView2 != null)
-                {
-                    string script = @"
-                    try {
-                        if (typeof imageMarkers !== 'undefined') {
-                            imageMarkers.forEach(m => { try { map.removeLayer(m); } catch(e){} });
-                            imageMarkers = [];
-                        }
-                        if (typeof currentMarker !== 'undefined' && currentMarker) { try { map.removeLayer(currentMarker); } catch(e){} currentMarker = null; }
-                        if (typeof selectedMarker !== 'undefined' && selectedMarker) { try { map.removeLayer(selectedMarker); } catch(e){} selectedMarker = null; }
-                        if (typeof clearSelectedMarker === 'function') { clearSelectedMarker(); }
-                    } catch(e) { console.error(e); }";
-                    MapWebView.CoreWebView2.ExecuteScriptAsync(script);
-                }
-            }catch (Exception ex)
-            {
-                MessageBox.Show($"Fehler beim Aktualisieren der Karte: {ex.Message}", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-
-
-
+            selectedImage = null;
+            images.Clear();
+            _ = RunMapScriptAsync("addImageMarkers([]);clearSelectedMarker();clearCurrentMarker();");
             UpdateButtonStates();
-            
         }
 
         private void ChangeOutputFolderButton_Click(object sender, RoutedEventArgs e)
         {
             var folderDialog = new Ookii.Dialogs.Wpf.VistaFolderBrowserDialog
             {
-                Description = "Wählen Sie den Ausgabeordner für bearbeitete Bilder:",
+                Description = "WÃ¤hlen Sie den Ausgabeordner fÃ¼r bearbeitete Bilder:",
                 SelectedPath = settings.OutputFolder,
                 ShowNewFolderButton = true
             };
@@ -834,7 +598,7 @@ namespace PictureExifclone
                 settings.OutputFolder = folderDialog.SelectedPath;
                 settings.Save();
                 OutputFolderTextBox.Text = settings.OutputFolder;
-                MessageBox.Show($"Speicherort geändert zu:\n{settings.OutputFolder}", "Erfolg", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show($"Speicherort geÃ¤ndert zu:\n{settings.OutputFolder}", "Erfolg", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
 
@@ -855,8 +619,14 @@ namespace PictureExifclone
             bool enabled = GridEnabledCheckBox?.IsChecked == true;
             double size = GridSizeSlider?.Value ?? 100;
 
-            string script = $"updateGrid({enabled.ToString().ToLower()}, {size.ToString(System.Globalization.CultureInfo.InvariantCulture)});";
-            MapWebView.CoreWebView2.ExecuteScriptAsync(script);
+            string script = $"updateGrid({(enabled ? "true" : "false")}, {Js(size)});";
+            _ = RunMapScriptAsync(script);
+        }
+
+        private void AiMetadata_Click(object sender, RoutedEventArgs e)
+        {
+            if(images.Count==0) { MessageBox.Show(this,"Bitte zuerst Bilder laden."); return; }
+            new AiMetadataWindow(images.ToList(), settings) { Owner=this }.Show();
         }
 
         private void ShowLicensesButton_Click(object sender, RoutedEventArgs e)
@@ -872,17 +642,6 @@ namespace PictureExifclone
             catch (Exception ex)
             {
                 MessageBox.Show($"Fehler beim Oeffnen des Lizenz-Fensters: {ex.Message}", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-        private void CopyDirectory(string sourceDir, string destDir)
-        {
-            foreach (var dirPath in System.IO.Directory.GetDirectories(sourceDir, "*", System.IO.SearchOption.AllDirectories))
-            {
-                System.IO.Directory.CreateDirectory(dirPath.Replace(sourceDir, destDir));
-            }
-            foreach (var newPath in System.IO.Directory.GetFiles(sourceDir, "*.*", System.IO.SearchOption.AllDirectories))
-            {
-                File.Copy(newPath, newPath.Replace(sourceDir, destDir), true);
             }
         }
     }

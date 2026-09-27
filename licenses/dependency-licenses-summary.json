@@ -1,86 +1,314 @@
-﻿[
-    {
-        "Id":  "MetadataExtractor",
-        "Version":  "2.9.0",
-        "NuGetApiUrl":  "https://api.nuget.org/v3/registration5-gz-semver2/metadataextractor/index.json",
-        "NuGetPackagePage":  "https://www.nuget.org/packages/MetadataExtractor/2.9.0",
-        "NuGetLicensePage":  "https://www.nuget.org/packages/MetadataExtractor/2.9.0/license",
-        "LicenseExpression":  "Apache-2.0",
-        "LicenseUrl":  "https://www.nuget.org/packages/MetadataExtractor/2.9.0/license",
-        "LocalLicensePage":  "licenses/MetadataExtractor/MetadataExtractor-2.9.0-license-page.html",
-        "LocalLicenseFile":  "licenses/MetadataExtractor/MetadataExtractor-2.9.0-license.txt",
-        "Note":  "Hinweis: MetadataExtractor kann XmpCore als Ergänzung benötigen."
-    },
-    {
-        "Id":  "Microsoft.Web.WebView2",
-        "Version":  "1.0.3719.77",
-        "NuGetApiUrl":  "https://api.nuget.org/v3/registration5-gz-semver2/microsoft.web.webview2/index.json",
-        "NuGetPackagePage":  "https://www.nuget.org/packages/Microsoft.Web.WebView2/1.0.3719.77",
-        "NuGetLicensePage":  "https://www.nuget.org/packages/Microsoft.Web.WebView2/1.0.3719.77/license",
-        "LicenseExpression":  null,
-        "LicenseUrl":  null,
-        "LocalLicensePage":  "licenses/Microsoft.Web.WebView2/Microsoft.Web.WebView2-1.0.3719.77-license-page.html",
-        "LocalLicenseFile":  "licenses/Microsoft.Web.WebView2/Microsoft.Web.WebView2-1.0.3719.77-license.txt",
-        "Note":  null
-    },
-    {
-        "Id":  "SixLabors.ImageSharp",
-        "Version":  "3.1.12",
-        "NuGetApiUrl":  "https://api.nuget.org/v3/registration5-gz-semver2/sixlabors.imagesharp/index.json",
-        "NuGetPackagePage":  "https://www.nuget.org/packages/SixLabors.ImageSharp/3.1.12",
-        "NuGetLicensePage":  "https://www.nuget.org/packages/SixLabors.ImageSharp/3.1.12/license",
-        "LicenseExpression":  "",
-        "LicenseUrl":  "https://www.nuget.org/packages/SixLabors.ImageSharp/3.1.12/license",
-        "LocalLicensePage":  "licenses/SixLabors.ImageSharp/SixLabors.ImageSharp-3.1.12-license-page.html",
-        "LocalLicenseFile":  "licenses/SixLabors.ImageSharp/SixLabors.ImageSharp-3.1.12-license.txt",
-        "Note":  null
-    },
-    {
-        "Id":  "SixLabors.Fonts",
-        "Version":  "2.1.3",
-        "NuGetApiUrl":  "https://api.nuget.org/v3/registration5-gz-semver2/sixlabors.fonts/index.json",
-        "NuGetPackagePage":  "https://www.nuget.org/packages/SixLabors.Fonts/2.1.3",
-        "NuGetLicensePage":  "https://www.nuget.org/packages/SixLabors.Fonts/2.1.3/license",
-        "LicenseExpression":  "",
-        "LicenseUrl":  "https://www.nuget.org/packages/SixLabors.Fonts/2.1.3/license",
-        "LocalLicensePage":  "licenses/SixLabors.Fonts/SixLabors.Fonts-2.1.3-license-page.html",
-        "LocalLicenseFile":  "licenses/SixLabors.Fonts/SixLabors.Fonts-2.1.3-license.txt",
-        "Note":  null
-    },
-    {
-        "Id":  "SixLabors.ImageSharp.Drawing",
-        "Version":  "2.1.7",
-        "NuGetApiUrl":  "https://api.nuget.org/v3/registration5-gz-semver2/sixlabors.imagesharp.drawing/index.json",
-        "NuGetPackagePage":  "https://www.nuget.org/packages/SixLabors.ImageSharp.Drawing/2.1.7",
-        "NuGetLicensePage":  "https://www.nuget.org/packages/SixLabors.ImageSharp.Drawing/2.1.7/license",
-        "LicenseExpression":  "",
-        "LicenseUrl":  "https://www.nuget.org/packages/SixLabors.ImageSharp.Drawing/2.1.7/license",
-        "LocalLicensePage":  "licenses/SixLabors.ImageSharp.Drawing/SixLabors.ImageSharp.Drawing-2.1.7-license-page.html",
-        "LocalLicenseFile":  "licenses/SixLabors.ImageSharp.Drawing/SixLabors.ImageSharp.Drawing-2.1.7-license.txt",
-        "Note":  null
-    },
-    {
-        "Id":  "Ookii.Dialogs.Wpf",
-        "Version":  "5.0.1",
-        "NuGetApiUrl":  "https://api.nuget.org/v3/registration5-gz-semver2/ookii.dialogs.wpf/index.json",
-        "NuGetPackagePage":  "https://www.nuget.org/packages/Ookii.Dialogs.Wpf/5.0.1",
-        "NuGetLicensePage":  "https://www.nuget.org/packages/Ookii.Dialogs.Wpf/5.0.1/license",
-        "LicenseExpression":  "BSD-3-Clause",
-        "LicenseUrl":  "https://www.nuget.org/packages/Ookii.Dialogs.Wpf/5.0.1/license",
-        "LocalLicensePage":  "licenses/Ookii.Dialogs.Wpf/Ookii.Dialogs.Wpf-5.0.1-license-page.html",
-        "LocalLicenseFile":  "licenses/Ookii.Dialogs.Wpf/Ookii.Dialogs.Wpf-5.0.1-license.txt",
-        "Note":  null
-    },
-    {
-        "Id":  "XmpCore",
-        "Version":  "6.1.10.1",
-        "NuGetApiUrl":  "https://api.nuget.org/v3/registration5-gz-semver2/xmpcore/index.json",
-        "NuGetPackagePage":  "https://www.nuget.org/packages/XmpCore/6.1.10.1",
-        "NuGetLicensePage":  "https://www.nuget.org/packages/XmpCore/6.1.10.1/license",
-        "LicenseExpression":  "",
-        "LicenseUrl":  "https://www.adobe.com/devnet/xmp/library/eula-xmp-library-java.html",
-        "LocalLicensePage":  "licenses/XmpCore/XmpCore-6.1.10.1-license-page.html",
-        "LocalLicenseFile":  "licenses/XmpCore/XmpCore-6.1.10.1-license.txt",
-        "Note":  "Hinweis: licenseUrl nicht direkt als Text speicherbar."
-    }
+[
+  {
+    "Id": "Azure.Core",
+    "Version": "1.53.0",
+    "Kind": "NuGet (Laufzeit)",
+    "License": "MIT",
+    "Copyright": "© Microsoft Corporation. All rights reserved.",
+    "ProjectUrl": "https://github.com/Azure/azure-sdk-for-net/blob/Azure.Core_1.53.0/sdk/core/Azure.Core/README.md",
+    "Source": "SPDX expression + licenses/_spdx template",
+    "Files": [
+      "licenses/Azure.Core/LICENSE.MIT.txt"
+    ]
+  },
+  {
+    "Id": "Azure.Identity",
+    "Version": "1.21.0",
+    "Kind": "NuGet (Laufzeit)",
+    "License": "MIT",
+    "Copyright": "© Microsoft Corporation. All rights reserved.",
+    "ProjectUrl": "https://github.com/Azure/azure-sdk-for-net/blob/Azure.Identity_1.21.0/sdk/identity/Azure.Identity/README.md",
+    "Source": "SPDX expression + licenses/_spdx template",
+    "Files": [
+      "licenses/Azure.Identity/LICENSE.MIT.txt"
+    ]
+  },
+  {
+    "Id": "MetadataExtractor",
+    "Version": "2.9.3",
+    "Kind": "NuGet (Laufzeit)",
+    "License": "Apache-2.0",
+    "Copyright": "Copyright Drew Noakes 2002-2026",
+    "ProjectUrl": "https://github.com/drewnoakes/metadata-extractor-dotnet",
+    "Source": "SPDX expression + licenses/_spdx template",
+    "Files": [
+      "licenses/MetadataExtractor/LICENSE.Apache-2.0.txt"
+    ]
+  },
+  {
+    "Id": "Microsoft.Bcl.AsyncInterfaces",
+    "Version": "10.0.3",
+    "Kind": "NuGet (Laufzeit)",
+    "License": "MIT",
+    "Copyright": "© Microsoft Corporation. All rights reserved.",
+    "ProjectUrl": "https://dot.net/",
+    "Source": "SPDX expression + licenses/_spdx template",
+    "Files": [
+      "licenses/Microsoft.Bcl.AsyncInterfaces/LICENSE.MIT.txt",
+      "licenses/Microsoft.Bcl.AsyncInterfaces/THIRD-PARTY-NOTICES.TXT"
+    ]
+  },
+  {
+    "Id": "Microsoft.Extensions.Configuration.Abstractions",
+    "Version": "10.0.3",
+    "Kind": "NuGet (Laufzeit)",
+    "License": "MIT",
+    "Copyright": "© Microsoft Corporation. All rights reserved.",
+    "ProjectUrl": "https://dot.net/",
+    "Source": "SPDX expression + licenses/_spdx template",
+    "Files": [
+      "licenses/Microsoft.Extensions.Configuration.Abstractions/LICENSE.MIT.txt",
+      "licenses/Microsoft.Extensions.Configuration.Abstractions/THIRD-PARTY-NOTICES.TXT"
+    ]
+  },
+  {
+    "Id": "Microsoft.Extensions.DependencyInjection.Abstractions",
+    "Version": "10.0.3",
+    "Kind": "NuGet (Laufzeit)",
+    "License": "MIT",
+    "Copyright": "© Microsoft Corporation. All rights reserved.",
+    "ProjectUrl": "https://dot.net/",
+    "Source": "SPDX expression + licenses/_spdx template",
+    "Files": [
+      "licenses/Microsoft.Extensions.DependencyInjection.Abstractions/LICENSE.MIT.txt",
+      "licenses/Microsoft.Extensions.DependencyInjection.Abstractions/THIRD-PARTY-NOTICES.TXT"
+    ]
+  },
+  {
+    "Id": "Microsoft.Extensions.Diagnostics.Abstractions",
+    "Version": "10.0.3",
+    "Kind": "NuGet (Laufzeit)",
+    "License": "MIT",
+    "Copyright": "© Microsoft Corporation. All rights reserved.",
+    "ProjectUrl": "https://dot.net/",
+    "Source": "SPDX expression + licenses/_spdx template",
+    "Files": [
+      "licenses/Microsoft.Extensions.Diagnostics.Abstractions/LICENSE.MIT.txt",
+      "licenses/Microsoft.Extensions.Diagnostics.Abstractions/THIRD-PARTY-NOTICES.TXT"
+    ]
+  },
+  {
+    "Id": "Microsoft.Extensions.FileProviders.Abstractions",
+    "Version": "10.0.3",
+    "Kind": "NuGet (Laufzeit)",
+    "License": "MIT",
+    "Copyright": "© Microsoft Corporation. All rights reserved.",
+    "ProjectUrl": "https://dot.net/",
+    "Source": "SPDX expression + licenses/_spdx template",
+    "Files": [
+      "licenses/Microsoft.Extensions.FileProviders.Abstractions/LICENSE.MIT.txt",
+      "licenses/Microsoft.Extensions.FileProviders.Abstractions/THIRD-PARTY-NOTICES.TXT"
+    ]
+  },
+  {
+    "Id": "Microsoft.Extensions.Hosting.Abstractions",
+    "Version": "10.0.3",
+    "Kind": "NuGet (Laufzeit)",
+    "License": "MIT",
+    "Copyright": "© Microsoft Corporation. All rights reserved.",
+    "ProjectUrl": "https://dot.net/",
+    "Source": "SPDX expression + licenses/_spdx template",
+    "Files": [
+      "licenses/Microsoft.Extensions.Hosting.Abstractions/LICENSE.MIT.txt",
+      "licenses/Microsoft.Extensions.Hosting.Abstractions/THIRD-PARTY-NOTICES.TXT"
+    ]
+  },
+  {
+    "Id": "Microsoft.Extensions.Logging.Abstractions",
+    "Version": "10.0.3",
+    "Kind": "NuGet (Laufzeit)",
+    "License": "MIT",
+    "Copyright": "© Microsoft Corporation. All rights reserved.",
+    "ProjectUrl": "https://dot.net/",
+    "Source": "SPDX expression + licenses/_spdx template",
+    "Files": [
+      "licenses/Microsoft.Extensions.Logging.Abstractions/LICENSE.MIT.txt",
+      "licenses/Microsoft.Extensions.Logging.Abstractions/THIRD-PARTY-NOTICES.TXT"
+    ]
+  },
+  {
+    "Id": "Microsoft.Extensions.Options",
+    "Version": "10.0.3",
+    "Kind": "NuGet (Laufzeit)",
+    "License": "MIT",
+    "Copyright": "© Microsoft Corporation. All rights reserved.",
+    "ProjectUrl": "https://dot.net/",
+    "Source": "SPDX expression + licenses/_spdx template",
+    "Files": [
+      "licenses/Microsoft.Extensions.Options/LICENSE.MIT.txt",
+      "licenses/Microsoft.Extensions.Options/THIRD-PARTY-NOTICES.TXT"
+    ]
+  },
+  {
+    "Id": "Microsoft.Extensions.Primitives",
+    "Version": "10.0.3",
+    "Kind": "NuGet (Laufzeit)",
+    "License": "MIT",
+    "Copyright": "© Microsoft Corporation. All rights reserved.",
+    "ProjectUrl": "https://dot.net/",
+    "Source": "SPDX expression + licenses/_spdx template",
+    "Files": [
+      "licenses/Microsoft.Extensions.Primitives/LICENSE.MIT.txt",
+      "licenses/Microsoft.Extensions.Primitives/THIRD-PARTY-NOTICES.TXT"
+    ]
+  },
+  {
+    "Id": "Microsoft.Identity.Client.Extensions.Msal",
+    "Version": "4.83.1",
+    "Kind": "NuGet (Laufzeit)",
+    "License": "MIT",
+    "Copyright": "© Microsoft Corporation. All rights reserved.",
+    "ProjectUrl": "https://go.microsoft.com/fwlink/?linkid=844761",
+    "Source": "SPDX expression + licenses/_spdx template",
+    "Files": [
+      "licenses/Microsoft.Identity.Client.Extensions.Msal/LICENSE.MIT.txt"
+    ]
+  },
+  {
+    "Id": "Microsoft.Identity.Client",
+    "Version": "4.83.1",
+    "Kind": "NuGet (Laufzeit)",
+    "License": "MIT",
+    "Copyright": "© Microsoft Corporation. All rights reserved.",
+    "ProjectUrl": "https://go.microsoft.com/fwlink/?linkid=844761",
+    "Source": "SPDX expression + licenses/_spdx template",
+    "Files": [
+      "licenses/Microsoft.Identity.Client/LICENSE.MIT.txt"
+    ]
+  },
+  {
+    "Id": "Microsoft.IdentityModel.Abstractions",
+    "Version": "8.14.0",
+    "Kind": "NuGet (Laufzeit)",
+    "License": "MIT",
+    "Copyright": "© Microsoft Corporation. All rights reserved.",
+    "ProjectUrl": "https://github.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet",
+    "Source": "SPDX expression + licenses/_spdx template",
+    "Files": [
+      "licenses/Microsoft.IdentityModel.Abstractions/LICENSE.MIT.txt"
+    ]
+  },
+  {
+    "Id": "Microsoft.Web.WebView2",
+    "Version": "1.0.4191.47",
+    "Kind": "NuGet (Laufzeit)",
+    "License": "file: LICENSE.txt",
+    "Copyright": "© Microsoft Corporation. All rights reserved.",
+    "ProjectUrl": "https://aka.ms/webview",
+    "Source": "package file",
+    "Files": [
+      "licenses/Microsoft.Web.WebView2/LICENSE.txt",
+      "licenses/Microsoft.Web.WebView2/NOTICE.txt"
+    ]
+  },
+  {
+    "Id": "Ookii.Dialogs.Wpf",
+    "Version": "5.0.1",
+    "Kind": "NuGet (Laufzeit)",
+    "License": "BSD-3-Clause",
+    "Copyright": "Copyright (c) 2009-2021 Ookii Dialogs Contributors",
+    "ProjectUrl": "https://github.com/ookii-dialogs/ookii-dialogs-wpf",
+    "Source": "SPDX expression + licenses/_spdx template",
+    "Files": [
+      "licenses/Ookii.Dialogs.Wpf/LICENSE.BSD-3-Clause.txt"
+    ]
+  },
+  {
+    "Id": "SixLabors.Fonts",
+    "Version": "2.1.3",
+    "Kind": "NuGet (Laufzeit)",
+    "License": "file: LICENSE",
+    "Copyright": "Copyright © Six Labors",
+    "ProjectUrl": "https://github.com/SixLabors/Fonts",
+    "Source": "package file",
+    "Files": [
+      "licenses/SixLabors.Fonts/LICENSE"
+    ]
+  },
+  {
+    "Id": "SixLabors.ImageSharp.Drawing",
+    "Version": "2.1.7",
+    "Kind": "NuGet (Laufzeit)",
+    "License": "file: LICENSE",
+    "Copyright": "Copyright © Six Labors",
+    "ProjectUrl": "https://github.com/SixLabors/ImageSharp.Drawing",
+    "Source": "package file",
+    "Files": [
+      "licenses/SixLabors.ImageSharp.Drawing/LICENSE"
+    ]
+  },
+  {
+    "Id": "SixLabors.ImageSharp",
+    "Version": "3.1.12",
+    "Kind": "NuGet (Laufzeit)",
+    "License": "file: LICENSE",
+    "Copyright": "Copyright © Six Labors",
+    "ProjectUrl": "https://github.com/SixLabors/ImageSharp",
+    "Source": "package file",
+    "Files": [
+      "licenses/SixLabors.ImageSharp/LICENSE"
+    ]
+  },
+  {
+    "Id": "System.ClientModel",
+    "Version": "1.10.0",
+    "Kind": "NuGet (Laufzeit)",
+    "License": "MIT",
+    "Copyright": "© Microsoft Corporation. All rights reserved.",
+    "ProjectUrl": "https://github.com/Azure/azure-sdk-for-net/blob/System.ClientModel_1.10.0/sdk/core/System.ClientModel/README.md",
+    "Source": "SPDX expression + licenses/_spdx template",
+    "Files": [
+      "licenses/System.ClientModel/LICENSE.MIT.txt"
+    ]
+  },
+  {
+    "Id": "System.Memory.Data",
+    "Version": "10.0.3",
+    "Kind": "NuGet (Laufzeit)",
+    "License": "MIT",
+    "Copyright": "© Microsoft Corporation. All rights reserved.",
+    "ProjectUrl": "https://dot.net/",
+    "Source": "SPDX expression + licenses/_spdx template",
+    "Files": [
+      "licenses/System.Memory.Data/LICENSE.MIT.txt",
+      "licenses/System.Memory.Data/THIRD-PARTY-NOTICES.TXT"
+    ]
+  },
+  {
+    "Id": "XmpCore",
+    "Version": "6.1.10.1",
+    "Kind": "NuGet (Laufzeit)",
+    "License": "see licenses/_manual",
+    "Copyright": "Copyright 2015-2021",
+    "ProjectUrl": "https://github.com/drewnoakes/xmp-core-dotnet/",
+    "Source": "licenses/_manual (nuspec licenseUrl: https://www.adobe.com/devnet/xmp/library/eula-xmp-library-java.html)",
+    "Files": [
+      "licenses/XmpCore/LICENSE.txt"
+    ]
+  },
+  {
+    "Id": "Microsoft.NETCore.App.Runtime.win-x64",
+    "Version": "10.0.12",
+    "Kind": "Runtime (self-contained)",
+    "License": "MIT",
+    "Copyright": "© Microsoft Corporation. All rights reserved.",
+    "ProjectUrl": "https://dot.net/",
+    "Source": "package file",
+    "Files": [
+      "licenses/Microsoft.NETCore.App.Runtime.win-x64/LICENSE.TXT",
+      "licenses/Microsoft.NETCore.App.Runtime.win-x64/THIRD-PARTY-NOTICES.TXT"
+    ]
+  },
+  {
+    "Id": "Microsoft.WindowsDesktop.App.Runtime.win-x64",
+    "Version": "10.0.12",
+    "Kind": "Runtime (self-contained)",
+    "License": "MIT",
+    "Copyright": "© Microsoft Corporation. All rights reserved.",
+    "ProjectUrl": "https://dot.net/",
+    "Source": "package file",
+    "Files": [
+      "licenses/Microsoft.WindowsDesktop.App.Runtime.win-x64/LICENSE"
+    ]
+  }
 ]

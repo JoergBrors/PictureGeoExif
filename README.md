@@ -1,102 +1,66 @@
-# PictureExifclone — Bild-Georeferenzierungs-Anwendung (Deutsch)
+# PictureGeoExif
 
-## Kurzbeschreibung
+WPF-Desktopanwendung (.NET 10, Windows) zum **Georeferenzieren, Bearbeiten und Verschlagworten von Fotos**. GPS-Koordinaten kommen aus einer OpenStreetMap-Karte oder einem Referenzbild und werden verlustfrei in die EXIF-Daten geschrieben. Ein Editor mit pixelgenauen Werkzeugen und ein optionales KI-Modul fÃ¼r Metadaten ergÃ¤nzen die Anwendung. Originaldateien werden nie verÃ¤ndert.
 
-PictureExifclone ist eine WPF-Anwendung (.NET 8) zum Hinzufügen und Bearbeiten von GPS-EXIF-Daten in Bilddateien. Die Anwendung bietet Funktionen zum Laden, Anzeigen, Bearbeiten und Exportieren von Bildern sowie verschiedene Möglichkeiten, GPS-Koordinaten auszuwählen und in die EXIF-Metadaten zu schreiben.
+Projekt- und Assemblyname: `PictureExifclone` Â· Lizenz: [MIT](LICENSE) Â· Drittanbieter: [THIRD-PARTY-LICENSES.md](THIRD-PARTY-LICENSES.md)
 
-In diesem README befindet sich die vollständige Nutzungs- und Build-Dokumentation. Per-Verzeichnis-READMEs beschreiben den Inhalt der Unterordner; diese sind mit diesem Root-README und dem Root-`changelog.md` verknüpft.
+## Funktionen
 
-## Projekte in der Solution
+- **Bilder laden** per Dialog oder Drag & Drop (JPG, PNG, BMP, TIF) mit Thumbnails und GPS-Anzeige
+- **Karte:** OpenStreetMap Ã¼ber lokal ausgeliefertes Leaflet in WebView2, Marker aller Bilder, Klick setzt Koordinaten, optionales Meter-Raster; der Kachelanbieter ist konfigurierbar
+- **GPS schreiben:** JPEG verlustfrei (nur der EXIF-Block wird ersetzt), PNG/TIFF verlustfrei, jeweils nachgeprÃ¼ft und atomar gespeichert; einzeln, fÃ¼r alle oder aus einem Referenzbild
+- **Bildeditor:** Zuschneiden, UnschÃ¤rfe, Verpixeln, Text, GPS-Stempel; pixelgenau und unabhÃ¤ngig von Zoom und DPI; Undo/Redo, Vorher/Nachher; Export als PNG, JPEG, TIFF oder BMP
+- **KI-Metadaten (optional):** Jahreszeit, Titel und StichwÃ¶rter per OpenAI (`gpt-5-mini`), Azure OpenAI oder Gemini
+  - JSON-Vorlagen, Stapelverarbeitung mit Budgetgrenzen, Ergebnis-Cache und Metadaten-Chat
+  - Speichern erst nach PrÃ¼fung, als XMP-Sidecar mit RÃ¼ckgÃ¤ngig
+  - Datensparsam: keine exakten GPS-Daten, keine Pfade, Vorschau ohne Metadaten
+- **Lizenzfenster** in der App
 
-- `PictureExifclone` — Hauptanwendung (WPF, .NET 8)
-- `BenchmarkSuite1` — Benchmark-Projekt (falls vorhanden)
+## Schnellstart
 
-## Verzeichnis-READMEs
+Voraussetzungen: Windows 10 1809+, [.NET SDK 10.0.401](global.json), WebView2 Runtime.
 
-Zur besseren Struktur befinden sich in relevanten Unterverzeichnissen eigene `README.md`-Dateien. Diese beschreiben die Dateien im jeweiligen Verzeichnis und wie sie in das Gesamtprojekt passen.
+```powershell
+git clone https://github.com/JoergBrors/PictureGeoExif.git
+cd PictureGeoExif
+dotnet build PictureExifclone.sln -c Debug
+dotnet run --project PictureExifclone.csproj
+dotnet test PictureExifclone.sln
+```
 
-Aktuelle Verzeichnis-READMEs:
+Fertige Builds fÃ¼r x64 und ARM64 (self-contained, ohne .NET-Installation) stehen unter GitHub Releases.
 
-- `Services/README.md` — Beschreibung der Service-Klassen (Thumbnails, EXIF, Speicher-APIs)
-- `BenchmarkSuite1/README.md` — Benchmark-Project Anleitung
+## Dokumentation
 
-Verwenden Sie diese Verzeichnis-READMEs für kontextbezogene Details. Das Root-README bleibt die zentrale Einstiegspage.
+| Thema | Dokument |
+| --- | --- |
+| Ãœbersicht aller Dokumente | [docs/README.md](docs/README.md) |
+| Wo liegt was im Code? | [docs/Code-Wegweiser.md](docs/Code-Wegweiser.md) |
+| Architektur, DatenflÃ¼sse, Speicherorte | [docs/Architektur.md](docs/Architektur.md) |
+| Build, Tests, CI/Release, Konventionen | [docs/Entwicklung.md](docs/Entwicklung.md) |
+| Bedienung | [docs/Benutzerhandbuch.md](docs/Benutzerhandbuch.md) |
+| Einsatz im Unternehmen (IT, Datenschutz, Lizenzen) | [docs/Betrieb-und-Unternehmenseinsatz.md](docs/Betrieb-und-Unternehmenseinsatz.md) |
+| Modernisierungsplan und Umsetzungsstand | [docs/GUI-AI-Update-Plan.md](docs/GUI-AI-Update-Plan.md) |
+| KI-Fachkonzept | [docs/AI-Metadata-Konzept.md](docs/AI-Metadata-Konzept.md) |
+| Service-Klassen | [Services/README.md](Services/README.md) |
+| Ã„nderungen | [changelog.md](changelog.md) |
 
-## Changelog-Verhalten (Root & Verzeichnisse)
-
-- Root-`changelog.md` im Repository-Stamm ist das zentrale Änderungsprotokoll und Release-Log.
-- Falls ein Verzeichnis eigene Änderungen protokollieren möchte, erstellt dort eine lokale `changelog.md`.
-  - Diese lokale Datei sollte eine kurze Überschrift und die Relevanz zur Root-Changelog enthalten.
-  - Beispielkopf für `Services/changelog.md`:
-
-    # Services Changelog
-    Dies ist ein Verzeichnis-spezifisches Änderungsprotokoll. Wichtige Änderungen werden auch im Root-`changelog.md` referenziert.
-
-- Empfehlung: Immer einen Eintrag im Root-`changelog.md` anlegen (oder referenzieren), wenn Änderungen die Benutzer-Funktionen betreffen oder Release-Notes erzeugt werden.
-
-## Kurzübersicht der Funktionen
-
-- Bilder per Datei-Dialog oder Drag & Drop laden
-- Vorschau / Thumbnails (performance- und speicheroptimiert)
-- Auswahl von GPS-Koordinaten über:
-  - Interaktive Karte (WebView2 / OpenStreetMap / Leaflet)
-  - Referenzbild mit vorhandenen GPS-EXIF-Daten
-  - vorhandenes Bild bearbeiten (über Liste)
-- GPS-Daten in EXIF schreiben (inkl. `GPSLatitude`, `GPSLongitude`, `GPSLatitudeRef`, `GPSLongitudeRef`)
-- Einzelbild- oder Stapelspeicherung
-
-## Kernkomponenten und Verhalten (Kurzdoku)
-
-1. `ImageService` (Siehe `Services/ImageService.cs` / `Services/README.md`)
-2. `OptimizedImageService` (Siehe `Services/OptimizedImageService.cs` / `Services/README.md`)
-
-(Die ausführlichen API-Details und Beispiele befinden sich in `Services/README.md`.)
-
-## Anleitungen für Entwickler
-
-### Voraussetzungen
-
-- .NET 8 SDK installiert
-- (optional) Visual Studio 2022/2023 mit .NET Desktop-Entwicklung
-- WebView2 Runtime installiert, falls Karte genutzt wird
-
-### Projekt öffnen
-
-- Lokales Klonen: `git clone https://github.com/JoergBrors/PictureGeoExif.git`
-- Solution öffnen mit Visual Studio oder über CLI
-
-### Build & Run (lokal)
-
-- CLI (Debug):
-  - `dotnet build PictureExifclone.csproj -c Debug`
-  - `dotnet run --project PictureExifclone.csproj`
-- Debug in Visual Studio: Solution öffnen, `PictureExifclone` als Startprojekt wählen und starten.
-
-### Builden aus einem Git-Tag ("tag build")
-
-Siehe Root-`changelog.md` für eine Schritt-für-Schritt-Anleitung, wie man Builds aus einem Tag erzeugt. Kurze Zusammenfassung:
-
-1. `git fetch --all --tags`
-2. `git checkout tags/<tag> -b build-<tag>`
-3. `dotnet build PictureExifclone.csproj -c Release`
-4. `dotnet publish PictureExifclone.csproj -c Release -o ./publish`
-
-## Tests & Benchmarks
-
-- `BenchmarkSuite1` kann mit `dotnet run --project BenchmarkSuite1/BenchmarkSuite1.csproj -c Release` gestartet werden.
-
-## Mitwirken (Contributing)
-
-- Bitte Issues im GitHub-Repository eröffnen und Pull Requests gegen `main` einreichen.
-- Für grössere Änderungen bitte vorher ein Issue mit Design/Architekturvorschlag öffnen.
-
-## Lizenz
-
-- Prüfen Sie die enthaltene Lizenz-Datei im Repository (sofern vorhanden) für Nutzungs- und Verbreitungsbedingungen.
-
-## Kontakt
-
-- Projekt im lokalen Repo: `E:\Code\PictureGeoExif` (Beispielpfad)
+## Projektstruktur (Kurzform)
 
 ```text
-Hinweis: Verzeichnis-READMEs und lokale `changelog.md` sollten immer mit dem Root-`changelog.md` verknüpft werden, damit Release-Notes zentral gepflegt sind.
+MainWindow / ImageEditorWindow / AiMetadataWindow   WPF-Fenster
+Services/        Bild-I/O, Geometrie, EXIF/XMP, KI-Adapter (ohne UI, getestet)
+Models/          Datenobjekte
+Resources/       Karte (map.html, map.js, Leaflet)
+docs/examples/   KI-Vorlage und Antwortschema (werden als Templates/ ausgeliefert)
+tests/           xUnit-Tests
+licenses/        Lizenztexte aller ausgelieferten Komponenten
+```
+
+## Lizenz und Unternehmenseinsatz
+
+Das Projekt steht unter der MIT-Lizenz und darf kommerziell genutzt werden. Die Bildbibliotheken von Six Labors unterliegen einer **Split License**: FÃ¼r dieses Open-Source-Projekt gilt Apache-2.0. ProprietÃ¤re Weiterentwicklungen durch Unternehmen mit mindestens 1 Mio. USD Jahresumsatz benÃ¶tigen eine kommerzielle Lizenz. FÃ¼r OpenStreetMap-Kacheln gilt die OSM Tile Usage Policy. Einzelheiten und eine Freigabe-Checkliste stehen in [THIRD-PARTY-LICENSES.md](THIRD-PARTY-LICENSES.md).
+
+## Mitwirken
+
+Issues und Pull Requests gegen `main` sind willkommen. Der PR-Workflow baut ohne Warnungen, fÃ¼hrt die Tests aus und prÃ¼ft die Pakete auf Schwachstellen. Bitte die Konventionen in [docs/Entwicklung.md](docs/Entwicklung.md) beachten.

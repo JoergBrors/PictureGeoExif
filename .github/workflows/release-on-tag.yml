@@ -1,4 +1,4 @@
-﻿name: Build & Release (from main) on Tag
+name: Build & Release on Tag
 
 on:
   push:
@@ -21,16 +21,20 @@ jobs:
       PROJECT_PATH: PictureExifclone.csproj
 
     steps:
-      - name: Checkout main
+      # Build exactly the tagged commit (not whatever main points to).
+      - name: Checkout tag
         uses: actions/checkout@v4
         with:
-          ref: main
           fetch-depth: 0
 
-      - name: Setup .NET 8
+      - name: Setup .NET (global.json)
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          global-json-file: global.json
+
+      - name: Test
+        if: matrix.runtime == 'win-x64'
+        run: dotnet test PictureExifclone.sln -c Release
 
       - name: Cache NuGet packages
         uses: actions/cache@v4
@@ -93,8 +97,7 @@ jobs:
           body: |
             Automatisch erstelltes Release für Tag `${{ github.ref_name }}`.
 
-            **Build-Quelle:** Branch `main` (nicht der Tag-Commit)
-            **Commit (main):** `${{ github.sha }}`
+            **Build-Quelle:** Tag-Commit `${{ github.sha }}`
             **Runtime:** `${{ matrix.runtime }}`
             **Single-File:** SelfContained
             

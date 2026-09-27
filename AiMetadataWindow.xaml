@@ -1,0 +1,168 @@
+<Window x:Class="PictureExifclone.AiMetadataWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="KI-Metadaten" Width="1400" Height="860" MinWidth="980" MinHeight="600"
+        WindowStartupLocation="CenterOwner" Background="#F3F5F8" Closing="Window_Closing">
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Kopf: Anbieter, Schlüssel, Preise, Budget -->
+        <Border Background="White" CornerRadius="6" Padding="10" Margin="0,0,0,10">
+            <WrapPanel>
+                <StackPanel Margin="0,0,16,0">
+                    <TextBlock Text="Anbieterprofil" FontWeight="SemiBold"/>
+                    <ComboBox x:Name="ProviderBox" Width="300" SelectionChanged="ProviderBox_SelectionChanged"/>
+                </StackPanel>
+                <StackPanel Margin="0,0,16,0">
+                    <TextBlock Text="API-Schlüssel (Windows-Anmeldeinformationen)" FontWeight="SemiBold"/>
+                    <StackPanel Orientation="Horizontal">
+                        <PasswordBox x:Name="KeyBox" Width="200" VerticalContentAlignment="Center"/>
+                        <Button Content="Speichern" Click="SaveKey_Click"/>
+                        <Button Content="Löschen" Click="DeleteKey_Click"/>
+                    </StackPanel>
+                    <TextBlock x:Name="KeyStatus" FontSize="11" Foreground="#555"/>
+                </StackPanel>
+                <StackPanel Margin="0,0,16,0">
+                    <TextBlock Text="Preise USD / 1 Mio. Tokens (Eingabe · Cache · Ausgabe)" FontWeight="SemiBold"/>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBox x:Name="PriceInput" Width="70"/><TextBox x:Name="PriceCached" Width="70"/><TextBox x:Name="PriceOutput" Width="70"/>
+                        <DatePicker x:Name="PriceDate" Width="130" Margin="4,0" ToolTip="Datum, an dem die Preise beim Anbieter geprüft wurden"/>
+                    </StackPanel>
+                    <TextBlock Text="Ohne geprüfte Preise wird kein kostenpflichtiger Lauf gestartet." FontSize="11" Foreground="#555"/>
+                </StackPanel>
+                <StackPanel>
+                    <TextBlock Text="Eingabetokens/Bild (Obergrenze für Schätzung)" FontWeight="SemiBold"/>
+                    <TextBox x:Name="TokenEstimate" Width="90" HorizontalAlignment="Left" Text="3000"/>
+                    <TextBlock x:Name="BudgetText" FontSize="11" Foreground="#555"/>
+                </StackPanel>
+            </WrapPanel>
+        </Border>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="300" MinWidth="220"/>
+                <ColumnDefinition Width="6"/>
+                <ColumnDefinition Width="*" MinWidth="320"/>
+                <ColumnDefinition Width="6"/>
+                <ColumnDefinition Width="420" MinWidth="300"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Links: Bildliste -->
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,6">
+                    <TextBlock Text="Filter:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                    <ComboBox x:Name="FilterBox" Width="150" SelectedIndex="0" SelectionChanged="FilterBox_SelectionChanged">
+                        <ComboBoxItem Content="Alle"/><ComboBoxItem Content="Zu prüfen"/><ComboBoxItem Content="Fehler"/><ComboBoxItem Content="Entscheidung nötig"/>
+                    </ComboBox>
+                    <Button Content="Alle" Click="SelectAll_Click" ToolTip="Alle Bilder markieren"/>
+                    <Button Content="Keine" Click="SelectNone_Click" ToolTip="Markierung aufheben"/>
+                </StackPanel>
+                <DataGrid x:Name="ImageGrid" AutoGenerateColumns="False" CanUserAddRows="False" HeadersVisibility="Column"
+                          SelectionMode="Single" SelectionChanged="ImageGrid_SelectionChanged" EnableRowVirtualization="True">
+                    <DataGrid.Columns>
+                        <DataGridCheckBoxColumn Header="✓" Binding="{Binding Selected, UpdateSourceTrigger=PropertyChanged}" Width="32"/>
+                        <DataGridTextColumn Header="Datei" Binding="{Binding Name}" IsReadOnly="True" Width="*"/>
+                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" IsReadOnly="True" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </DockPanel>
+            <GridSplitter Grid.Column="1" HorizontalAlignment="Stretch"/>
+
+            <!-- Mitte: Vorschau und Änderungen -->
+            <Grid Grid.Column="2">
+                <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                <Border Background="#252B36" CornerRadius="4">
+                    <Image x:Name="PreviewImage" Stretch="Uniform" Margin="6"/>
+                </Border>
+                <TextBlock Grid.Row="1" x:Name="PreferenceText" TextWrapping="Wrap" Margin="0,6"/>
+                <DataGrid Grid.Row="2" x:Name="ChangeGrid" AutoGenerateColumns="False" CanUserAddRows="False" HeadersVisibility="Column">
+                    <DataGrid.Columns>
+                        <DataGridCheckBoxColumn Header="Übernehmen" Binding="{Binding Accept, UpdateSourceTrigger=PropertyChanged}" Width="Auto"/>
+                        <DataGridTextColumn Header="Feld" Binding="{Binding Field}" IsReadOnly="True" Width="Auto"/>
+                        <DataGridTextColumn Header="Bisher" Binding="{Binding Current}" IsReadOnly="True" Width="*"/>
+                        <DataGridTextColumn Header="Vorschlag" Binding="{Binding Proposed}" IsReadOnly="True" Width="2*"/>
+                        <DataGridTextColumn Header="Quelle" Binding="{Binding Source}" IsReadOnly="True" Width="Auto"/>
+                        <DataGridTextColumn Header="Beleg" Binding="{Binding Evidence}" IsReadOnly="True" Width="2*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+            <GridSplitter Grid.Column="3" HorizontalAlignment="Stretch"/>
+
+            <!-- Rechts: Vorlage, Regeln, Chat -->
+            <TabControl Grid.Column="4">
+                <TabItem Header="Vorlage &amp; JSON">
+                    <DockPanel Margin="4">
+                        <WrapPanel DockPanel.Dock="Top">
+                            <Button Content="Validieren &amp; übernehmen" Click="ApplyTemplate_Click"/>
+                            <Button Content="Laden …" Click="LoadTemplate_Click"/>
+                            <Button Content="Als neue Version speichern" Click="SaveTemplate_Click"/>
+                            <Button Content="Standard" Click="DefaultTemplate_Click"/>
+                        </WrapPanel>
+                        <TextBlock x:Name="TemplateStatus" DockPanel.Dock="Bottom" TextWrapping="Wrap" Margin="0,4"/>
+                        <TextBox x:Name="TemplateBox" AcceptsReturn="True" AcceptsTab="True" FontFamily="Consolas" FontSize="12"
+                                 HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" TextWrapping="NoWrap"/>
+                    </DockPanel>
+                </TabItem>
+                <TabItem Header="Regeln">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="8">
+                            <TextBlock TextWrapping="Wrap" Margin="0,0,0,8">
+                                Vorschläge werden erst nach Prüfung übernommen und als XMP-Sidecar (Bildname.ext.xmp) geschrieben. Die Bilddatei selbst bleibt unverändert.
+                                Vorhandene XMP-Werte bleiben erhalten (fillMissing); Stichwörter werden nur ergänzt (mergeUnique).
+                            </TextBlock>
+                            <TextBlock TextWrapping="Wrap" Margin="0,0,0,8">
+                                An den Anbieter gehen nur eine verkleinerte Vorschau ohne eingebettete Metadaten, das Aufnahmedatum ohne Uhrzeit, die Hemisphäre sowie vorhandene Beschreibungen.
+                                Keine exakten GPS-Daten, keine Dateipfade, keine Seriennummern.
+                            </TextBlock>
+                            <TextBlock TextWrapping="Wrap" Margin="0,0,0,8" FontWeight="SemiBold">KI-Nutzung &amp; Data Mining</TextBlock>
+                            <TextBlock TextWrapping="Wrap" Margin="0,0,0,8">
+                                Nutzungspräferenzen werden niemals aus Bildinhalt, Datum oder Kamera abgeleitet. Bilder mit IPTC-Data-Mining-Verbot werden übersprungen;
+                                vorhandene EXIF-LearningOptOutIn-Angaben erfordern eine ausdrückliche Entscheidung beim Start.
+                                Das Schreiben von LearningOptOutIn bleibt bis zum CIPA-Normabgleich gesperrt (Plan, Abschnitt 7).
+                                Hinweis: Diese Angaben beschreiben Präferenzen und verhindern technisch weder Kopieren noch KI-Verarbeitung.
+                            </TextBlock>
+                            <Separator Margin="0,8"/>
+                            <TextBlock Text="Manuell ohne Modellaufruf: Jahreszeit für markierte Bilder" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,6">
+                                <ComboBox x:Name="ManualSeason" Width="140" SelectedIndex="0">
+                                    <ComboBoxItem Content="Winter"/><ComboBoxItem Content="Frühling"/><ComboBoxItem Content="Sommer"/><ComboBoxItem Content="Herbst"/>
+                                </ComboBox>
+                                <Button Content="Als Vorschlag setzen" Click="ManualSeason_Click"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+                <TabItem Header="Chat">
+                    <DockPanel Margin="4">
+                        <TextBlock DockPanel.Dock="Top" TextWrapping="Wrap" Foreground="#555" Margin="0,0,0,4"
+                                   Text="Umfang: markierte Bilder. Der Chat liefert nur typisierte Vorschläge; nichts wird ohne „Änderungen speichern“ geschrieben. Bilder werden nicht erneut gesendet."/>
+                        <DockPanel DockPanel.Dock="Bottom" Margin="0,6,0,0">
+                            <Button DockPanel.Dock="Right" x:Name="ChatSend" Content="Senden" Click="ChatSend_Click" IsDefault="False"/>
+                            <TextBox x:Name="ChatInput" AcceptsReturn="False" KeyDown="ChatInput_KeyDown"/>
+                        </DockPanel>
+                        <TextBox x:Name="ChatLog" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
+                    </DockPanel>
+                </TabItem>
+            </TabControl>
+        </Grid>
+
+        <!-- Fuß -->
+        <DockPanel Grid.Row="2" Margin="0,10,0,0">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                <Button x:Name="CheckButton" Content="Lokal prüfen" Click="Check_Click"/>
+                <Button x:Name="TestButton" Content="Testlauf (3 Bilder)" Click="Test_Click"/>
+                <Button x:Name="StartButton" Content="Analyse starten" Click="Start_Click" FontWeight="SemiBold"/>
+                <Button x:Name="CancelButton" Content="Abbrechen" Click="Cancel_Click" IsEnabled="False"/>
+                <Button x:Name="ApplyButton" Content="Ausgewählte Änderungen speichern" Click="Apply_Click"/>
+            </StackPanel>
+            <StackPanel VerticalAlignment="Center">
+                <ProgressBar x:Name="Progress" Height="8" Margin="0,0,12,4"/>
+                <TextBlock x:Name="StatusText" TextWrapping="Wrap" Text="Bereit. Zuerst „Lokal prüfen“ – das kostet nichts."/>
+            </StackPanel>
+        </DockPanel>
+    </Grid>
+</Window>

@@ -92,3 +92,4 @@ GeneratedFiles/
 # *.db-shm
 # *.db-wal
 old/
+.fake
