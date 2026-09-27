@@ -24,6 +24,17 @@ public class WindowTests
         window.Close();
     });
 
+    /// <summary>
+    /// Catches handlers that fire during InitializeComponent (e.g. IsChecked="True") before sibling controls exist.
+    /// Not closed on purpose: Closed saves the real user settings.
+    /// </summary>
+    [Fact]
+    public void MainWindow_ConstructsWithoutInitOrderErrors() => OnSta(() => _ = new MainWindow());
+
+    [Fact]
+    public void RoadMatchSettingsWindow_LoadsXaml() => OnSta(() =>
+        new RoadMatchSettingsWindow(new AppSettings { FilePath = Path.Combine(Path.GetTempPath(), "pge-test-" + Guid.NewGuid().ToString("N") + ".json") }).Close());
+
     [Fact]
     public void ImageEditorWindow_LoadsXaml() => OnSta(() => new ImageEditorWindow(@"C:\nicht\vorhanden.jpg").Close());
 }

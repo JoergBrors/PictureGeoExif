@@ -1,6 +1,6 @@
 # Drittanbieter-Lizenzen und Einsatz im Unternehmen
 
-Stand: 27.09.2026 · PictureGeoExif (PictureExifclone) 0.96 · Zielplattform .NET 10 / Windows 10 1809+
+Stand: 27.09.2026 · PictureGeoExif (PictureExifclone) 0.97 · Zielplattform .NET 10 / Windows 10 1809+
 
 Diese Datei listet alle Komponenten Dritter, die mit der Anwendung ausgeliefert oder zur Laufzeit genutzt werden, einschließlich transitiver Abhängigkeiten. Die vollständigen Lizenztexte liegen im Ordner `licenses/`. Die maschinenlesbare Liste steht in `licenses/dependency-licenses-summary.json`. Beide werden mit `scripts/Update-ThirdPartyLicenses.ps1` direkt aus den NuGet-Paketen erzeugt, nicht aus Webseiten.
 
@@ -92,7 +92,17 @@ Die neueren Hauptversionen (ImageSharp 4.x, Fonts 3.x, Drawing 3.x) wurden bewus
 - Die App zeigt die Attribution sichtbar und anklickbar in der Karte an. Diese Anzeige darf nicht entfernt oder verdeckt werden.
 - Die Kacheln kommen standardmäßig vom Community-Server `tile.openstreetmap.org`. Dafür gilt die **OSM Tile Usage Policy** (<https://operations.osmfoundation.org/policies/tiles/>): keine starke oder automatisierte Nutzung, keine Massen-Downloads, klare Identifikation der App und **keine Verfügbarkeitszusage**. Die OSMF kann den Zugriff jederzeit sperren. Zum Unternehmenseinsatz siehe Abschnitt 4.3.
 
-### 3.4 KI-Anbieter (optional, nur nach ausdrücklichem Start)
+### 3.4 Routing-Dienst für „Trassen an Wege anlegen“ (optional)
+
+- Die Funktion sendet die **Koordinaten der Trassenpunkte** an einen Valhalla-kompatiblen Routing-Server (`POST /trace_attributes`). Voreingestellt ist der **öffentliche Demo-Server des FOSSGIS e.V.** (`valhalla1.openstreetmap.de`); über ⚙ ist er austauschbar.
+- Es gelten die **Nutzungsbedingungen des FOSSGIS e.V.** (<https://www.fossgis.de/arbeitsgruppen/osm-server/nutzungsbedingungen/>):
+  - gültiger User-Agent, der die Anwendung identifiziert, und höchstens **1 Anfrage pro Sekunde**. Beides setzt die App technisch um: eine Verbindung, Drosselung ≥ 1,1 s, keine automatischen Wiederholungen.
+  - **Gewerbliche Nutzung nur, wenn der Dienst keinen wesentlichen Teil eines Onlineangebots darstellt**; massenhafte Abrufe sind verboten.
+  - keine Verfügbarkeitszusage.
+- Die gelieferte Geometrie stammt aus OpenStreetMap-Daten (ODbL, © OpenStreetMap contributors); die Attribution der Karte deckt das ab.
+- Valhalla selbst (MIT-Lizenz) wird **nicht** mitgeliefert. Zum eigenen Server siehe Abschnitt 4.3.
+
+### 3.5 KI-Anbieter (optional, nur nach ausdrücklichem Start)
 
 Die KI-Funktion nutzt Cloud-Dienste. Sie liefert **keine** Software dieser Anbieter aus; es gelten die jeweiligen Vertrags- und Nutzungsbedingungen des Kontos, dessen Schlüssel eingetragen wird:
 
@@ -104,7 +114,7 @@ Die KI-Funktion nutzt Cloud-Dienste. Sie liefert **keine** Software dieser Anbie
 
 Die Bildanalyse ist **standardmäßig nicht aktiv**. Ohne Schlüssel und eingetragene Preise sendet die App keine Daten. Einzelheiten stehen in Abschnitt 4.4.
 
-### 3.5 Schriften, Symbole und Normen
+### 3.6 Schriften, Symbole und Normen
 
 - **Schriften:** Es werden keine Schriftdateien mitgeliefert. Stempel verwenden die Systemschrift „Segoe UI“ (ersatzweise „Arial“) des jeweiligen Windows-Systems. Symbole in der Oberfläche sind Unicode-Emoji der Systemschrift.
 - **Normen:** CIPA DC-008/DC-010 (EXIF 3.1, XMP) und die IPTC Photo Metadata sind nur referenziert, nicht enthalten.
@@ -140,6 +150,7 @@ Im Zweifel gilt der Lizenzwortlaut. Wer eine Lizenzpflicht vermeiden will, verö
   - `TileUrl` (HTTPS, Platzhalter `{z}/{x}/{y}`)
   - `TileAttribution` und `TileAttributionUrl`: die vom Anbieter verlangte Attribution
 - Bei einem Proxy mit TLS-Inspektion muss die WebView2 Runtime dem Unternehmenszertifikat vertrauen.
+- **Trassen an Wege anlegen:** Der FOSSGIS-Demo-Server eignet sich zum Ausprobieren und für gelegentliche Einzelnutzung. Für den regelmäßigen Firmeneinsatz einen **eigenen Valhalla-Server** betreiben (z. B. Docker-Image mit einem Deutschland- oder Bundesland-Extrakt aus OpenStreetMap) und über ⚙ eintragen. HTTP ist nur für `localhost` zulässig, sonst HTTPS. Dann verlassen keine Baustellenkoordinaten das Unternehmen.
 
 ### 4.4 KI-Funktion und Datenschutz (DSGVO)
 
@@ -165,6 +176,7 @@ Im Zweifel gilt der Lizenzwortlaut. Wer eine Lizenzpflicht vermeiden will, verö
 - [ ] SixLabors-Szenario nach 4.2 bestimmt; bei Szenario B kommerzielle Lizenz vorhanden.
 - [ ] Kachelanbieter festgelegt: OSM nur bei geringer Nutzung, sonst kommerziell oder eigener Server; Attribution konfiguriert.
 - [ ] WebView2 Runtime auf den Zielsystemen vorhanden.
+- [ ] Routing-Server für „Trassen an Wege anlegen“ festgelegt: eigener Valhalla-Server oder bewusst nur gelegentliche Nutzung des FOSSGIS-Demo-Servers.
 - [ ] KI-Funktion: Anbieter, AVV, Region, Budgetgrenzen im Anbieterkonto und Zuständigkeit für Schlüssel geklärt, oder KI bewusst nicht genutzt.
 - [ ] Verarbeitungsverzeichnis und Information der Betroffenen, falls personenbezogene Bilder verarbeitet werden.
 - [ ] Ausgabeordner und Sidecar-Ablage in das Backup-Konzept aufgenommen.

@@ -1,0 +1,42 @@
+<Window x:Class="PictureExifclone.RoadMatchSettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Trassen an Wege anlegen – Einstellungen" Width="560" SizeToContent="Height" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner">
+    <StackPanel Margin="16">
+        <TextBlock Text="Routing-Server (Valhalla-kompatibel)" FontWeight="SemiBold"/>
+        <TextBox x:Name="UrlBox" Margin="0,4,0,2"/>
+        <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="#555" Margin="0,0,0,12">
+            Standard ist der öffentliche Demo-Server des FOSSGIS e.V. (valhalla1.openstreetmap.de): nur faire, gelegentliche Nutzung,
+            höchstens 1 Anfrage pro Sekunde, keine Verfügbarkeitszusage. Gewerblich nur zulässig, wenn der Dienst kein wesentlicher Teil
+            eines Onlineangebots ist. Für den Firmeneinsatz einen eigenen Valhalla-Server eintragen (z. B. http://localhost:8002).
+            Gesendet werden nur die Koordinaten der Trassenpunkte.
+        </TextBlock>
+
+        <TextBlock Text="Wegeprofil" FontWeight="SemiBold"/>
+        <ComboBox x:Name="ProfileBox" Margin="0,4,0,12">
+            <ComboBoxItem Content="Fußwege, Gehwege, Feldwege (empfohlen für Tiefbau)" Tag="pedestrian"/>
+            <ComboBoxItem Content="Radwege und Straßen" Tag="bicycle"/>
+            <ComboBoxItem Content="Nur befahrbare Straßen" Tag="auto"/>
+        </ComboBox>
+
+        <TextBlock Text="Maximaler Abstand Foto → Weg" FontWeight="SemiBold"/>
+        <StackPanel Orientation="Horizontal" Margin="0,4,0,2">
+            <Slider x:Name="DeviationSlider" Width="300" Minimum="5" Maximum="100" TickFrequency="5" IsSnapToTickEnabled="True"/>
+            <TextBlock VerticalAlignment="Center" Margin="8,0,0,0" FontWeight="Bold">
+                <Run Text="{Binding Value, ElementName=DeviationSlider, StringFormat={}{0:F0}}"/><Run Text=" m"/>
+            </TextBlock>
+        </StackPanel>
+        <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="#555" Margin="0,0,0,12">
+            Liegt ein Foto weiter entfernt, wird dieser Abschnitt gerade (gestrichelt) verbunden statt auf einen Weg gezogen.
+            Die GPS-Daten der Fotos werden nie verändert.
+        </TextBlock>
+
+        <TextBlock x:Name="ErrorText" Foreground="#C62828" TextWrapping="Wrap"/>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+            <Button Content="Standard" Click="Default_Click"/>
+            <Button Content="OK" IsDefault="True" Click="Ok_Click" MinWidth="80"/>
+            <Button Content="Abbrechen" IsCancel="True" MinWidth="80"/>
+        </StackPanel>
+    </StackPanel>
+</Window>

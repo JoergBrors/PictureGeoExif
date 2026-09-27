@@ -38,6 +38,7 @@ Regeln:
 
 - **Tests dürfen keine Benutzerdaten anfassen.** Für `AppSettings` in Tests immer `new AppSettings { FilePath = <temp> }` verwenden. Das Standard-`Save()` schreibt nach `%APPDATA%`.
 - Testbilder synthetisch erzeugen (ImageSharp); keine echten Fotos einchecken.
+- Keine echten Netzaufrufe in Tests. `RoadMatcherTests` nutzen einen Fake-`HttpMessageHandler`; die Drosselung lässt sich per `minInterval: TimeSpan.Zero` abschalten. Der öffentliche FOSSGIS-Server darf nicht aus CI angesprochen werden.
 - Keine echten KI-Aufrufe in Tests. Anbieterlogik wird offline über Schema, Parsing und Validierung geprüft.
 
 ## Konventionen

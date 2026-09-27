@@ -13,6 +13,14 @@ namespace PictureExifclone
         /// <summary>Photos farther apart than this start a new virtual route (trench).</summary>
         public double RouteMaxGapMeters { get; set; } = 200;
         public bool SortImagesByRoute { get; set; } = true;
+        /// <summary>Photos farther than this from the trunk line become branches (house connections); nearer ones count as GPS jitter.</summary>
+        public double RouteBranchMinMeters { get; set; } = 10;
+        /// <summary>Valhalla-compatible map-matching server. Default: public FOSSGIS demo server (fair use, max. 1 request/s).</summary>
+        public string RoadMatchUrl { get; set; } = Services.RoadMatcher.DefaultServer;
+        /// <summary>Valhalla costing: pedestrian (paths, sidewalks), bicycle or auto.</summary>
+        public string RoadMatchProfile { get; set; } = "pedestrian";
+        /// <summary>Photos farther from the nearest way are connected in a straight line instead.</summary>
+        public double RoadMatchMaxDeviationMeters { get; set; } = 25;
         /// <summary>Per provider profile; prices are entered and dated by the user, never hard-coded.</summary>
         public Dictionary<string, AiPriceEntry> AiPrices { get; set; } = new();
         public string? AiTemplatePath { get; set; }

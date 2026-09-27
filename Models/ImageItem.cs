@@ -81,9 +81,12 @@ namespace PictureExifclone.Models
         public int RouteNumber { get => _routeNumber; private set { _routeNumber = value; OnPropertyChanged(); OnPropertyChanged(nameof(RouteInfo)); } }
         /// <summary>1-based position along the route (south→north or west→east).</summary>
         public int RouteIndex { get => _routeIndex; private set { _routeIndex = value; OnPropertyChanged(); OnPropertyChanged(nameof(RouteInfo)); } }
-        public string RouteInfo => RouteNumber > 0 ? $"Trasse {RouteNumber} · Nr. {RouteIndex}" : "";
+        private bool _isBranch;
+        /// <summary>True if the photo lies on a side branch (e.g. house connection), not on the trunk.</summary>
+        public bool IsBranch { get => _isBranch; private set { _isBranch = value; OnPropertyChanged(); OnPropertyChanged(nameof(RouteInfo)); } }
+        public string RouteInfo => RouteNumber > 0 ? $"Trasse {RouteNumber} · Nr. {RouteIndex}{(IsBranch ? " · Abzweig" : "")}" : "";
 
-        public void SetRoute(int number, int index) { RouteNumber = number; RouteIndex = index; }
+        public void SetRoute(int number, int index, bool isBranch = false) { RouteNumber = number; RouteIndex = index; IsBranch = isBranch; }
 
         private readonly Stack<(string Path, double? Latitude, double? Longitude)> _history = new();
 

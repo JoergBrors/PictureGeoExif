@@ -36,6 +36,7 @@ PictureGeoExif/
 | Datei sicher schreiben | `Services/AtomicFile.cs` → `Write` (temporäre Datei + Replace/Move) |
 | Karte: Verhalten, Marker, Raster, Layer | `Resources/map.js` (Funktionen `configure`, `addImageMarkers`, `setSelectedMarker`, `setCurrentMarker`, `setRoutes`, `setLayerVisible`, `updateGrid`; Doppelklick = neuer Punkt) |
 | Virtuelle Trassen / Reihenfolge der Bilder | `Services/RouteBuilder.cs` (Clustering, Pfad, Richtung); Anwendung in `MainWindow.xaml.cs` → `RebuildRoutes` |
+| Trassen an Wege anlegen (Map-Matching) | `Services/RoadMatcher.cs` (Valhalla `trace_attributes`, Drosselung, Polyline-Decoder); `MainWindow.xaml.cs` → `RoadMatch_Click`, `ApplyRoadLayer`, `RoadKey` (Cache); Dialog `RoadMatchSettingsWindow.xaml(.cs)` |
 | Rückgängig pro Bild | `Models/ImageItem.cs` → `PushHistory`/`Undo`; `MainWindow.xaml.cs` → `UndoImage_Click` |
 | Karte: Einbindung, Sicherheit, Tile-Anbieter | `MainWindow.xaml.cs` → `InitializeWebView` (Virtual Host, Navigation-Filter, UA) und `CoreWebView2_WebMessageReceived`; `Resources/map.html` (CSP) |
 | Tile-URL oder Attribution konfigurieren | `AppSettings.cs` (`TileUrl`, `TileAttribution`, `TileAttributionUrl`) |
@@ -100,7 +101,8 @@ map.js  ──postMessage──▶  MainWindow.CoreWebView2_WebMessageReceived
 MainWindow ──ExecuteScriptAsync──▶ map.js
   configure({url, attribution, attributionUrl})
   addImageMarkers([{id, lat, lng}], fit) · setSelectedMarker(lat,lng,center) · clearSelectedMarker()
-  setRoutes([{number, lengthMeters, points:[[lat,lng],…]}]) · setLayerVisible("routes"|"images", bool)
+  setRoutes([{number, lengthMeters, points:[[lat,lng],…]}]) · setRoadRoutes([{number, segments:[{onRoad, points}]}])
+  setLayerVisible("routes"|"road"|"images", bool)
   setCurrentMarker(lat,lng) · clearCurrentMarker() · updateGrid(enabled, meter)
 ```
 

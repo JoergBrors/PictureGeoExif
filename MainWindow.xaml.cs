@@ -39,6 +39,8 @@ namespace PictureExifclone
             OutputFolderTextBox.Text = settings.OutputFolder;
             RouteGapSlider.Value = Math.Clamp(settings.RouteMaxGapMeters, RouteGapSlider.Minimum, RouteGapSlider.Maximum);
             SortByRouteCheckBox.IsChecked = settings.SortImagesByRoute;
+            BranchMinSlider.Value = Math.Clamp(settings.RouteBranchMinMeters, BranchMinSlider.Minimum, BranchMinSlider.Maximum);
+            UpdateRoadServerText();
             
             images.CollectionChanged += (s, e) => UpdateImageCount();
             
@@ -118,7 +120,7 @@ namespace PictureExifclone
                         int number=data.GetProperty("number").GetInt32();
                         var route=routes.FirstOrDefault(r=>r.Number==number);
                         MapInfoText.Text = route != null
-                            ? string.Create(CultureInfo.InvariantCulture, $"Trasse {route.Number}: {route.Points.Count} Bild(er), ca. {route.LengthMeters:F0} m, Richtung {(route.NorthSouth ? "Süd → Nord" : "West → Ost")}")
+                            ? string.Create(CultureInfo.InvariantCulture, $"Trasse {route.Number}: {route.Points.Count} Bild(er), {route.Branches.Count} Abzweig(e), ca. {route.LengthMeters:F0} m, Richtung {(route.NorthSouth ? "Süd → Nord" : "West → Ost")}")
                             : SelectionInfo();
                         break;
                     case "coordinates":
@@ -159,31 +161,36 @@ namespace PictureExifclone
 
         private IReadOnlyList<Route> routes = [];
 
-        private static string Describe(ImageItem item) =>
+        private string Describe(ImageItem item) =>
             item.FileName + (item.RouteNumber > 0 ? " · " + item.RouteInfo : "") +
-            (item.HasGpsData ? string.Create(CultureInfo.InvariantCulture, $" · {item.Latitude:F6}, {item.Longitude:F6}") : " · keine GPS-Daten");
+            (item.HasGpsData ? string.Create(CultureInfo.InvariantCulture, $" · {item.Latitude:F6}, {item.Longitude:F6}") : " · keine GPS-Daten") +
+            (roadDistance.TryGetValue(item, out var d) ? (d is { } m ? $" · {m:F0} m zum Weg" : " · kein Weg in der Nähe") : "");
 
         private string SelectionInfo() => selectedImage != null ? Describe(selectedImage)
             : routes.Count > 0 ? $"{routes.Count} Trasse(n) · {routes.Sum(r => r.Points.Count)} Bild(er) mit GPS" : "Kein Bild ausgewählt";
 
         /// <summary>
-        /// Rebuilds the virtual routes from all GPS positions, numbers the images along them and
+        /// Rebuilds the virtual routes (trunk + branches) from all GPS positions, numbers the images along them and
         /// (optionally) reorders the image list to follow the routes. Must run after every GPS or list change,
         /// because map markers address images by their list index.
         /// </summary>
         private void RebuildRoutes(bool fit = false)
         {
-            var points = images.Select((img, i) => (img, i)).Where(x => x.img.HasGpsData)
+            var snapshot = images.ToList();
+            var points = snapshot.Select((img, i) => (img, i)).Where(x => x.img.HasGpsData)
                 .Select(x => new RoutePoint(x.i, x.img.Latitude!.Value, x.img.Longitude!.Value)).ToList();
-            routes = RouteBuilder.Build(points, RouteGapSlider.Value);
+            routes = RouteBuilder.Build(points, RouteGapSlider.Value, BranchMinSlider.Value);
+            // Point ids are snapshot indices; keep the items because the list may be reordered below.
+            pointItems = points.ToDictionary(p => p, p => snapshot[p.Id]);
 
-            var position = new Dictionary<ImageItem, (int Route, int Index)>();
+            var position = new Dictionary<ImageItem, (int Route, int Index, bool Branch)>();
             foreach (var route in routes)
-                for (int k = 0; k < route.Points.Count; k++) position[images[route.Points[k].Id]] = (route.Number, k + 1);
+                for (int k = 0; k < route.Points.Count; k++)
+                    position[pointItems[route.Points[k]]] = (route.Number, k + 1, route.IsBranchPoint(route.Points[k]));
             foreach (var img in images)
             {
-                var (route, index) = position.TryGetValue(img, out var p) ? p : (0, 0);
-                img.SetRoute(route, index);
+                var (route, index, branch) = position.TryGetValue(img, out var p) ? p : (0, 0, false);
+                img.SetRoute(route, index, branch);
             }
 
             if (SortByRouteCheckBox.IsChecked == true)
@@ -197,11 +204,148 @@ namespace PictureExifclone
                 }
             }
 
-            var routeData = routes.Select(r => new { number = r.Number, lengthMeters = Math.Round(r.LengthMeters),
-                points = r.Points.Select(p => new[] { p.Latitude, p.Longitude }) });
+            var routeData = routes.Select(r => new
+            {
+                number = r.Number,
+                lengthMeters = Math.Round(r.LengthMeters),
+                points = r.Trunk.Select(p => new[] { p.Latitude, p.Longitude }),
+                branches = r.Branches.Select(b => b.Points.Select(p => new[] { p.Latitude, p.Longitude })
+                    .Prepend(new[] { b.AttachLatitude, b.AttachLongitude }))
+            });
             _ = RunMapScriptAsync("setRoutes(" + System.Text.Json.JsonSerializer.Serialize(routeData) + ");");
             UpdateAllMarkersOnMap(fit);
+            ApplyRoadLayer();
             if (selectedImage == null) MapInfoText.Text = SelectionInfo();
+        }
+
+        // ---------- Trassen an Wege anlegen (Map-Matching) ----------
+
+        /// <summary>Road match of one route: the trunk and each branch separately (branch requests start at the attach point).</summary>
+        private sealed record RouteRoadMatch(RoadMatch Trunk, IReadOnlyList<RoadMatch> Branches);
+
+        private Dictionary<RoutePoint, ImageItem> pointItems = [];
+        private readonly Dictionary<string, RouteRoadMatch> roadCache = [];
+        private readonly Dictionary<ImageItem, double?> roadDistance = [];
+        private string? roadConsentServer; // consent is per server and session
+
+        private static string Coordinates(IEnumerable<(double Lat, double Lon)> points) =>
+            string.Join(";", points.Select(p => $"{Js(p.Lat)},{Js(p.Lon)}"));
+
+        /// <summary>Cache key: exact trunk/branch geometry plus all matching settings, so any change needs a new explicit request.</summary>
+        private string RoadKey(Route route) =>
+            string.Join("|", settings.RoadMatchUrl, settings.RoadMatchProfile, settings.RoadMatchMaxDeviationMeters.ToString(CultureInfo.InvariantCulture),
+                "T:" + Coordinates(route.Trunk.Select(p => (p.Latitude, p.Longitude))),
+                string.Join("", route.Branches.Select(b => "B:" + Coordinates(b.Points.Select(p => (p.Latitude, p.Longitude))
+                    .Prepend((b.AttachLatitude, b.AttachLongitude))))));
+
+        private static IReadOnlyList<RoutePoint> BranchRequest(RouteBranch branch) =>
+            branch.Points.Prepend(new RoutePoint(-1, branch.AttachLatitude, branch.AttachLongitude)).ToList();
+
+        private void UpdateRoadServerText()
+        {
+            string host = Uri.TryCreate(settings.RoadMatchUrl, UriKind.Absolute, out var uri) ? uri.Host : settings.RoadMatchUrl;
+            RoadServerText.Text = $"Server: {host}{(settings.RoadMatchUrl.TrimEnd('/') == RoadMatcher.DefaultServer ? " (öffentlicher Demo-Server, fair use)" : "")}";
+        }
+
+        /// <summary>Shows cached matches for the current routes; never contacts the server.</summary>
+        private void ApplyRoadLayer()
+        {
+            roadDistance.Clear();
+            var data = new List<object>();
+            foreach (var route in routes)
+            {
+                if (!roadCache.TryGetValue(RoadKey(route), out var match)) continue;
+                var segments = new List<(bool OnRoad, bool Branch, IReadOnlyList<(double Lat, double Lon)> Points)>();
+
+                for (int k = 0; k < route.Trunk.Count && k < match.Trunk.Deviations.Count; k++)
+                    roadDistance[pointItems[route.Trunk[k]]] = match.Trunk.Deviations[k];
+                segments.AddRange(match.Trunk.Segments.Select(g => (g.OnRoad, false, g.Points)));
+
+                for (int b = 0; b < route.Branches.Count && b < match.Branches.Count; b++)
+                {
+                    var branch = route.Branches[b]; var branchMatch = match.Branches[b];
+                    // Deviation index 0 is the attach point on the trunk, not a photo.
+                    for (int k = 0; k < branch.Points.Count && k + 1 < branchMatch.Deviations.Count; k++)
+                        roadDistance[pointItems[branch.Points[k]]] = branchMatch.Deviations[k + 1];
+                    segments.AddRange(branchMatch.Segments.Select(g => (g.OnRoad, true, g.Points)));
+                    // A connection ends at the photo (e.g. inside the property), not where the road does.
+                    var end = branchMatch.Segments.LastOrDefault()?.Points[^1];
+                    var photo = (branch.Points[^1].Latitude, branch.Points[^1].Longitude);
+                    if (end is { } last && last != photo) segments.Add((false, true, new[] { last, photo }));
+                }
+
+                data.Add(new
+                {
+                    number = route.Number,
+                    segments = segments.Where(g => g.Points.Count >= 2)
+                        .Select(g => new { onRoad = g.OnRoad, branch = g.Branch, points = g.Points.Select(p => new[] { p.Lat, p.Lon }) })
+                });
+            }
+            _ = RunMapScriptAsync("setRoadRoutes(" + System.Text.Json.JsonSerializer.Serialize(data) + ");");
+        }
+
+        private async void RoadMatch_Click(object sender, RoutedEventArgs e)
+        {
+            var pending = routes.Where(r => r.Points.Count >= 2 && !roadCache.ContainsKey(RoadKey(r))).ToList();
+            if (routes.All(r => r.Points.Count < 2)) { MapStatusText.Text = "Keine Trasse mit mindestens zwei GPS-Punkten vorhanden."; return; }
+            if (pending.Count == 0) { MapStatusText.Text = "Alle Trassen sind bereits an Wege angelegt."; ApplyRoadLayer(); return; }
+            if (!RoadMatcher.IsAllowedServer(settings.RoadMatchUrl, out var server))
+            { MapStatusText.Text = "Routing-Server ungültig – bitte über ⚙ einstellen."; return; }
+
+            int requests = pending.Sum(r => (r.Trunk.Count >= 2 ? 1 : 0) + r.Branches.Count);
+            if (roadConsentServer != server.AbsoluteUri)
+            {
+                bool demo = settings.RoadMatchUrl.TrimEnd('/') == RoadMatcher.DefaultServer;
+                var answer = MessageBox.Show(this,
+                    $"Die Koordinaten von {pending.Sum(r => r.Points.Count)} Fotopunkten ({pending.Count} Trasse(n), {pending.Sum(r => r.Branches.Count)} Abzweig(e), mind. {requests} Anfrage(n)) werden an\n{server.Host}\ngesendet, um den Verlauf an Straßen und Wege anzulegen.\n\n" +
+                    (demo ? "Das ist der öffentliche Demo-Server des FOSSGIS e.V.: nur faire, gelegentliche Nutzung, höchstens 1 Anfrage pro Sekunde, keine Verfügbarkeitszusage. Für den Firmeneinsatz einen eigenen Server über ⚙ eintragen.\n\n" : "") +
+                    "Die GPS-Daten der Fotos werden nicht verändert. Fortfahren?",
+                    "Trassen an Wege anlegen", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                if (answer != MessageBoxResult.Yes) return;
+                roadConsentServer = server.AbsoluteUri;
+            }
+
+            var matcher = new RoadMatcher(RoadMatcher.SharedClient, server, settings.RoadMatchProfile, settings.RoadMatchMaxDeviationMeters);
+            RoadMatchButton.IsEnabled = false;
+            var notes = new List<string>();
+            try
+            {
+                foreach (var route in pending)
+                {
+                    string key = RoadKey(route);
+                    MapStatusText.Text = $"Trasse {route.Number} wird an Wege angelegt … ({pending.IndexOf(route) + 1}/{pending.Count})";
+                    var trunk = await matcher.MatchAsync(route.Trunk, CancellationToken.None);
+                    if (trunk.Note != null) notes.Add($"Trasse {route.Number}: {trunk.Note}");
+                    var branches = new List<RoadMatch>();
+                    foreach (var branch in route.Branches)
+                    {
+                        MapStatusText.Text = $"Trasse {route.Number}: Abzweig {branches.Count + 1}/{route.Branches.Count} wird angelegt …";
+                        branches.Add(await matcher.MatchAsync(BranchRequest(branch), CancellationToken.None));
+                    }
+                    roadCache[key] = new RouteRoadMatch(trunk, branches);
+                    ApplyRoadLayer();
+                }
+                MapStatusText.Text = notes.Count == 0 ? $"{pending.Count} Trasse(n) an Wege angelegt." : string.Join(" ", notes);
+            }
+            catch (RoadMatchException ex)
+            {
+                // Stop on transport/server errors instead of retrying: protects the public server.
+                MapStatusText.Text = "Anlegen an Wege abgebrochen: " + ex.Message;
+            }
+            finally
+            {
+                RoadMatchButton.IsEnabled = true;
+                if (selectedImage != null) MapInfoText.Text = Describe(selectedImage);
+            }
+        }
+
+        private void RoadSettings_Click(object sender, RoutedEventArgs e)
+        {
+            if (new RoadMatchSettingsWindow(settings) { Owner = this }.ShowDialog() == true)
+            {
+                UpdateRoadServerText();
+                ApplyRoadLayer(); // settings are part of the cache key: old results disappear until matched again
+            }
         }
 
         private void UpdateAllMarkersOnMap(bool fit = false)
@@ -213,7 +357,11 @@ namespace PictureExifclone
 
         private void ApplyLayerVisibility()
         {
+            // Checked events fire while InitializeComponent is still creating the controls;
+            // the map applies the state itself on its "ready" message.
+            if (!mapReady) return;
             _ = RunMapScriptAsync($"setLayerVisible('routes',{(ShowRoutesCheckBox.IsChecked == true ? "true" : "false")});" +
+                                  $"setLayerVisible('road',{(ShowRoadCheckBox.IsChecked == true ? "true" : "false")});" +
                                   $"setLayerVisible('images',{(ShowImagesCheckBox.IsChecked == true ? "true" : "false")});");
         }
 
@@ -230,6 +378,13 @@ namespace PictureExifclone
         {
             if (settings is null) return;
             settings.RouteMaxGapMeters = RouteGapSlider.Value;
+            RebuildRoutes();
+        }
+
+        private void BranchMin_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (settings is null) return; // fired during InitializeComponent
+            settings.RouteBranchMinMeters = BranchMinSlider.Value;
             RebuildRoutes();
         }
 

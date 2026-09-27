@@ -255,7 +255,7 @@
 
                     <!-- Layer und Trassen -->
                     <WrapPanel Margin="0,0,0,4">
-                        <CheckBox x:Name="ShowRoutesCheckBox" Content="Trassen anzeigen" IsChecked="True" Margin="0,0,16,0"
+                        <CheckBox x:Name="ShowRoutesCheckBox" Content="Trassen (Luftlinie)" IsChecked="True" Margin="0,0,16,0"
                                   VerticalAlignment="Center" Checked="Layer_Changed" Unchecked="Layer_Changed"/>
                         <CheckBox x:Name="ShowImagesCheckBox" Content="Bilder anzeigen" IsChecked="True" Margin="0,0,16,0"
                                   VerticalAlignment="Center" Checked="Layer_Changed" Unchecked="Layer_Changed"/>
@@ -269,6 +269,21 @@
                         <TextBlock VerticalAlignment="Center" FontWeight="Bold" Margin="6,0,0,0">
                             <Run Text="{Binding Value, ElementName=RouteGapSlider, StringFormat={}{0:F0}}"/><Run Text=" m"/>
                         </TextBlock>
+                        <TextBlock Text="Abzweig ab:" VerticalAlignment="Center" Margin="16,0,6,0"/>
+                        <Slider x:Name="BranchMinSlider" Width="100" Minimum="3" Maximum="50" Value="10" TickFrequency="1"
+                                IsSnapToTickEnabled="True" VerticalAlignment="Center" ValueChanged="BranchMin_Changed"
+                                ToolTip="Fotos, die weiter als dieser Abstand neben dem Hauptstrang liegen, werden als Abzweig (z. B. Hausanschluss) senkrecht angebunden"/>
+                        <TextBlock VerticalAlignment="Center" FontWeight="Bold" Margin="6,0,0,0">
+                            <Run Text="{Binding Value, ElementName=BranchMinSlider, StringFormat={}{0:F0}}"/><Run Text=" m"/>
+                        </TextBlock>
+                    </WrapPanel>
+                    <WrapPanel Margin="0,0,0,4">
+                        <Button x:Name="RoadMatchButton" Content="🛣 Trassen an Wege anlegen" Click="RoadMatch_Click" Margin="0,0,6,0"
+                                ToolTip="Legt die Trassen über einen Routing-Server an Straßen, Geh- und Feldwege an. GPS-Daten der Fotos bleiben unverändert."/>
+                        <Button Content="⚙" Click="RoadSettings_Click" Margin="0,0,12,0" MinWidth="32" ToolTip="Routing-Server, Wegeprofil, maximaler Abstand"/>
+                        <CheckBox x:Name="ShowRoadCheckBox" Content="Wegverlauf anzeigen" IsChecked="True" Margin="0,0,12,0"
+                                  VerticalAlignment="Center" Checked="Layer_Changed" Unchecked="Layer_Changed"/>
+                        <TextBlock x:Name="RoadServerText" VerticalAlignment="Center" FontSize="11" Foreground="#FF555555"/>
                     </WrapPanel>
 
                     <!-- Raster-Steuerung -->
