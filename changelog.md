@@ -2,13 +2,22 @@
 
 Alle nennenswerten Änderungen an PictureGeoExif. Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/). Versionen entsprechen den Git-Tags.
 
-## [Unveröffentlicht]
+## [0.97] – 2026-09-27
 
 ### Hinzugefügt
 
 - **Virtuelle Trassen:** GPS-Punkte werden zu Trassen gruppiert (einstellbarer maximaler Punktabstand) und entlang des Verlaufs Süd → Nord bzw. West → Ost geordnet; die Bildliste folgt dieser Reihenfolge (abschaltbar). Kacheln zeigen „Trasse n · Nr. k“. (`Services/RouteBuilder.cs`)
+- **Abzweige / Hausanschlüsse:** Jede Trasse besteht aus Hauptstrang und Abzweigen.
+  - Fotos, die weiter als „Abzweig ab“ (Standard 10 m) neben dem Hauptstrang liegen, werden senkrecht angebunden, statt den Hauptstrang umzuleiten.
+  - Die Kachel zeigt „· Abzweig“; in der Bildliste steht das Foto hinter seiner Ansatzstelle.
+  - Beim Anlegen an Wege folgt ein Abzweig einem Weg in Reichweite, sonst dem direkten Weg zur Trasse.
 - **Layer-Schalter** für Trassen und Bilder auf der Karte.
 - **Rückgängig pro Bild** (↶ an der Kachel): stellt Pfad und Koordinaten vor der letzten Speicherung bzw. GPS-Zuweisung wieder her.
+- **Trassen an Wege anlegen** (Map-Matching über Valhalla, `Services/RoadMatcher.cs`):
+  - eigene Ebene „Wegverlauf“, Fußweg-Profil als Standard;
+  - Fotos weiter als 25 m vom Weg werden gerade verbunden; der Abstand je Foto steht in der Infozeile;
+  - Server, Profil und Abstand über ⚙ einstellbar. Standard ist der öffentliche FOSSGIS-Demo-Server (fair use, gedrosselt auf ≤ 1 Anfrage/s);
+  - die GPS-Daten der Fotos bleiben unverändert.
 
 ### Geändert
 

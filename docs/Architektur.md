@@ -47,9 +47,20 @@ flowchart TB
 ### Virtuelle Trassen (`RouteBuilder`)
 
 1. GPS-Punkte werden lokal metrisch projiziert. Punkte mit höchstens `RouteMaxGapMeters` Abstand (auch über Zwischenpunkte) bilden eine Trasse (Single-Linkage).
-2. Je Trasse entsteht ein offener Pfad: Nearest Neighbour vom südlichsten bzw. westlichsten Punkt, anschließend 2-opt gegen Umwege und Kreuzungen.
-3. Überwiegt die Nord-Süd-Ausdehnung, läuft die Trasse Süd → Nord, sonst West → Ost. Die Trassen werden nach ihrem Startpunkt nummeriert.
-4. `MainWindow.RebuildRoutes` setzt „Trasse n · Nr. k“ an jedem Bild, ordnet optional die Bildliste danach und überträgt Trassen und Marker an die Karte.
+2. Ein **minimaler Spannbaum** verbindet die Punkte einer Trasse. Der **Hauptstrang** ist der Baumpfad zwischen den beiden Blattknoten mit dem größten Luftlinienabstand. Anders als der längste Pfad läuft er nicht in einen langen Hausanschluss am Trassenende.
+3. **Zacken entfernen:** Bei weit auseinanderliegenden Hauptstrangfotos kann der Spannbaum über einen seitlichen Punkt laufen. Ein Punkt weiter als `RouteBranchMinMeters` neben der Abkürzung seiner Nachbarn wird aus dem Hauptstrang genommen, wenn der Strang davor und danach seine Richtung beibehält (±30°, auch einen Punkt weiter geprüft). Bei einer echten Ecke ändert sich die Richtung, der Punkt bleibt.
+4. **Abzweige:** Fotos weiter als `RouteBranchMinMeters` von der Hauptstranglinie bilden Abzweige, zusammenhängend im Spannbaum. Ein Abzweig setzt am **Lotfußpunkt** auf dem Hauptstrang an (direkter Weg zur Trasse); seine Fotos sind nach Entfernung vom Ansatzpunkt geordnet. Näher liegende Fotos gelten als GPS-Streuung und werden nach Position entlang der Linie in den Hauptstrang einsortiert.
+5. Überwiegt die Nord-Süd-Ausdehnung, läuft der Hauptstrang Süd → Nord, sonst West → Ost. Die Trassen werden nach ihrem Startpunkt nummeriert.
+6. `Route.Points` ist die Gesamtreihenfolge für die Bildliste: Hauptstrangfotos entlang des Laufs, Abzweig-Fotos direkt hinter ihrer Ansatzstelle. `MainWindow.RebuildRoutes` setzt „Trasse n · Nr. k (· Abzweig)“, ordnet optional die Liste und überträgt Hauptstrang und Abzweige an die Karte.
+
+### Trassen an Wege anlegen (`RoadMatcher`)
+
+- **Auslösung:** nur nach Klick und Bestätigung (pro Server und Sitzung).
+- **Anfrage:** Hauptstrang und jeder Abzweig werden getrennt gematcht (Abzweig ab seinem Ansatzpunkt auf dem Hauptstrang). Die Punkte gehen an `POST {Server}/trace_attributes` (Valhalla, `shape_match=map_snap`, `search_radius` = maximaler Abstand, Profil `pedestrian`/`bicycle`/`auto`).
+- **Antwort:** die Weggeometrie (encoded polyline, Genauigkeit 6) und je Foto der Abstand zum Weg.
+- **Fotos abseits der Wege:** Fotos über der Grenze oder `unmatched` werden gerade verbunden; die übrigen Abschnitte werden einzeln gematcht. Grenzen: höchstens 12 Anfragen je Trasse, höchstens 250 Punkte.
+- **Schonung des öffentlichen Servers:** eine Verbindung, global mindestens 1,1 s zwischen Anfragen, App-User-Agent, keine automatischen Wiederholungen. Ergebnisse werden pro Trassengeometrie und Einstellung im Speicher gecacht.
+- **Fotokoordinaten** bleiben unverändert; das Ergebnis ist reine Darstellung (Ebene „Wegverlauf“).
 
 ### GPS schreiben (`ImageService.WriteGpsToImage`)
 
@@ -103,6 +114,7 @@ flowchart LR
 | Kein stilles Überschreiben | `AtomicFile.ExportPath`: Zeitstempel mit Millisekunden plus GUID; `overwrite: false` |
 | Karte isoliert | Virtual Host nur für `Resources/`, CSP, Navigation nur auf eigenen Ursprung, externe Links nur OSM/Leaflet/Attribution im Systembrowser, Webnachrichten typisiert und validiert |
 | Keine Fremdidentität | OSM-Anfragen mit echtem WebView2-User-Agent plus `PictureGeoExif/<Version> (+Repo-URL)` (`Services/AppInfo.cs`) |
+| Routing-Server schonen | Drosselung ≥ 1,1 s, eine Verbindung, kein Retry, Cache; nur Koordinaten, nur nach Bestätigung |
 | KI-Daten minimieren | Vorschau ohne Metadaten; Datum ohne Uhrzeit; Hemisphäre statt GPS; keine Pfade oder Seriennummern; Metadaten ausdrücklich als „nicht vertrauenswürdige Daten“ gekennzeichnet |
 | Modell schreibt nichts direkt | Antworten sind strikt typisiert; der Chat hat nur drei Aktionen; übernommen wird nur nach Review |
 | Rechte nie raten | Das Antwortschema hat keine Rechtefelder; Vorlagen mit `allowModelInference: true` werden abgelehnt; `LearningOptOutIn` wird nicht geschrieben |

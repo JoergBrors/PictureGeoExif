@@ -84,6 +84,64 @@ public class RouteTests
     }
 
     [Fact]
+    public void HouseConnectionBesideTrench_BecomesBranch_NotDetour()
+    {
+        // Trench north along x=0, house connection 25 m west at y=50 (the Rathaus case).
+        var points = new[] { P(0, 0, 0), P(1, 25, 1), P(2, 50, 0), P(3, 75, -1), P(4, 100, 0), P(9, 52, -25) };
+        var route = Assert.Single(RouteBuilder.Build(points, 200, branchMinMeters: 10));
+
+        Assert.Equal([0, 1, 2, 3, 4], route.Trunk.Select(p => p.Id));
+        var branch = Assert.Single(route.Branches);
+        Assert.Equal([9], branch.Points.Select(p => p.Id));
+        // Attached perpendicularly: foot on the trunk line at ~52 m north, not at a photo point.
+        Assert.InRange((branch.AttachLatitude - 50.5) / LatMeter, 50, 54);
+        Assert.InRange(Math.Abs((branch.AttachLongitude - 8.19) / LonMeter), 0, 1.5);
+        // Image order: the connection follows the trunk photo where it leaves.
+        Assert.Equal([0, 1, 2, 9, 3, 4], Ids(route));
+        Assert.True(route.IsBranchPoint(points[5]));
+        // Length = trunk + branch, no back-and-forth detour.
+        Assert.InRange(route.LengthMeters, 124, 128);
+    }
+
+    [Fact]
+    public void GpsJitterWithinThreshold_StaysOnTrunk()
+    {
+        var points = new[] { P(0, 0, 0), P(1, 30, 6), P(2, 60, -7), P(3, 90, 0) };
+        var route = Assert.Single(RouteBuilder.Build(points, 200, branchMinMeters: 10));
+        Assert.Empty(route.Branches);
+        Assert.Equal([0, 1, 2, 3], Ids(route));
+    }
+
+    [Fact]
+    public void BranchWithSeveralPhotos_IsOneBranch_OrderedOutward()
+    {
+        var points = new[] { P(0, 0, 0), P(1, 50, 0), P(2, 100, 0), P(5, 50, 40), P(4, 50, 20) };
+        var route = Assert.Single(RouteBuilder.Build(points, 200));
+        var branch = Assert.Single(route.Branches);
+        Assert.Equal([4, 5], branch.Points.Select(p => p.Id));
+        Assert.Equal([0, 1, 4, 5, 2], Ids(route));
+    }
+
+    [Fact]
+    public void LongConnectionNearTrenchEnd_DoesNotHijackTheTrunk()
+    {
+        // Connection 30 m long at y=90 is longer than the remaining 10 m of trunk – the trunk must still end at y=100.
+        var points = new[] { P(0, 0, 0), P(1, 30, 0), P(2, 60, 0), P(3, 90, 0), P(4, 100, 0), P(7, 90, -15), P(8, 90, -30) };
+        var route = Assert.Single(RouteBuilder.Build(points, 200));
+        Assert.Equal([0, 1, 2, 3, 4], route.Trunk.Select(p => p.Id));
+        Assert.Equal([7, 8], Assert.Single(route.Branches).Points.Select(p => p.Id));
+    }
+
+    [Fact]
+    public void BranchesOnBothSides_AreSeparate()
+    {
+        var points = new[] { P(0, 0, 0), P(1, 50, 0), P(2, 100, 0), P(3, 30, 20), P(4, 70, -20) };
+        var route = Assert.Single(RouteBuilder.Build(points, 200));
+        Assert.Equal(2, route.Branches.Count);
+        Assert.Equal([0, 3, 1, 4, 2], Ids(route));
+    }
+
+    [Fact]
     public void ImageItem_UndoRestoresPathAndCoordinates()
     {
         var item = new ImageItem { FilePath = @"C:\a.jpg", Latitude = 1, Longitude = 2 };

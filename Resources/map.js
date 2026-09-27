@@ -1,7 +1,7 @@
 "use strict";
 // Double click is reserved for placing a new GPS point, so it must not zoom.
 const map = L.map('map', {worldCopyJump:true, doubleClickZoom:false}).setView([51.1657,10.4515],6);
-const imageLayer=L.layerGroup().addTo(map), routeLayer=L.layerGroup().addTo(map);
+const roadLayer=L.layerGroup().addTo(map), routeLayer=L.layerGroup().addTo(map), imageLayer=L.layerGroup().addTo(map);
 let currentMarker=null, selectedMarker=null, gridLayer=null, tiles=null;
 let currentGridSize=100, gridEnabled=false;
 const notice=document.getElementById('notice');
@@ -41,7 +41,7 @@ function setSelectedMarker(lat,lng,center){if(!valid(lat,lng))return;clearSelect
  if(center!==false&&!map.getBounds().contains([lat,lng]))map.panTo([lat,lng]);}
 function clearSelectedMarker(){if(selectedMarker)map.removeLayer(selectedMarker);selectedMarker=null;}
 
-// routes: [{number, lengthMeters, points:[[lat,lng],...]}] ordered south→north / west→east.
+// routes: [{number, lengthMeters, points:[[lat,lng],...] (trunk, south→north / west→east), branches:[[attach,[lat,lng],...]]}]
 function setRoutes(routes){routeLayer.clearLayers();
  routes.forEach(r=>{const pts=r.points.filter(p=>valid(p[0],p[1]));if(pts.length<2)return;
   const color=routeColors[(r.number-1)%routeColors.length];
@@ -49,11 +49,26 @@ function setRoutes(routes){routeLayer.clearLayers();
   L.circleMarker(pts[0],{radius:5,color,fill:true,fillOpacity:1,interactive:false}).addTo(routeLayer);
   L.circleMarker(pts[pts.length-1],{radius:5,color,fill:true,fillColor:'#fff',fillOpacity:1,interactive:false}).addTo(routeLayer);
   line.on('mouseover',()=>send({type:'routeHover',number:r.number}));
-  line.on('mouseout',()=>send({type:'routeHover',number:0}));});
+  line.on('mouseout',()=>send({type:'routeHover',number:0}));
+  (r.branches||[]).forEach(b=>{const bp=b.filter(p=>valid(p[0],p[1]));if(bp.length<2)return;
+   L.polyline(bp,{color,weight:3,opacity:0.8,dashArray:'8 4'}).addTo(routeLayer)
+    .on('mouseover',()=>send({type:'routeHover',number:r.number})).on('mouseout',()=>send({type:'routeHover',number:0}));
+   L.circleMarker(bp[0],{radius:3,color,fill:true,fillOpacity:1,interactive:false}).addTo(routeLayer);});});
  imageLayer.eachLayer(l=>l.bringToFront());}
 
-function setLayerVisible(name,visible){const layer=name==='routes'?routeLayer:name==='images'?imageLayer:null;if(!layer)return;
- if(visible&&!map.hasLayer(layer))layer.addTo(map);if(!visible&&map.hasLayer(layer))map.removeLayer(layer);}
+// Road-matched routes: [{number, segments:[{onRoad, points:[[lat,lng],...]}]}]. Straight gaps = photo off the way network.
+function setRoadRoutes(routes){roadLayer.clearLayers();
+ routes.forEach(r=>{const color=routeColors[(r.number-1)%routeColors.length];
+  r.segments.forEach(s=>{const pts=s.points.filter(p=>valid(p[0],p[1]));if(pts.length<2)return;
+   const style=s.onRoad?{color,weight:s.branch?4:6,opacity:0.55}:{color:s.branch?color:'#868e96',weight:s.branch?3:3,opacity:0.9,dashArray:s.branch?'8 4':'6 6'};
+   const line=L.polyline(pts,style).addTo(roadLayer);
+   line.on('mouseover',()=>send({type:'routeHover',number:r.number}));
+   line.on('mouseout',()=>send({type:'routeHover',number:0}));});});
+ imageLayer.eachLayer(l=>l.bringToFront());}
+
+function setLayerVisible(name,visible){const layer=name==='routes'?routeLayer:name==='images'?imageLayer:name==='road'?roadLayer:null;if(!layer)return;
+ if(visible&&!map.hasLayer(layer))layer.addTo(map);if(!visible&&map.hasLayer(layer))map.removeLayer(layer);
+ imageLayer.eachLayer(l=>l.bringToFront());}
 
 function updateGrid(enabled,size){gridEnabled=!!enabled;currentGridSize=Number(size);if(gridLayer)map.removeLayer(gridLayer);gridLayer=null;
  if(!gridEnabled||!Number.isFinite(currentGridSize)||currentGridSize<10)return;

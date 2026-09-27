@@ -35,11 +35,21 @@ Die EXE ist nicht code-signiert. Bei AppLocker oder WDAC den Hash oder Pfad frei
   "TileAttributionUrl": "https://www.openstreetmap.org/copyright",
   "OutputFolder": "D:\\Bilder\\Export",
   "AiPrices": { "openai-economy": { "Input": 0, "Cached": 0, "Output": 0, "VerifiedDate": "2026-09-27T00:00:00" } },
-  "AiTemplatePath": null
+  "AiTemplatePath": null,
+  "RouteMaxGapMeters": 200,
+  "SortImagesByRoute": true,
+  "RoadMatchUrl": "https://valhalla1.openstreetmap.de",
+  "RoadMatchProfile": "pedestrian",
+  "RoadMatchMaxDeviationMeters": 25
 }
 ```
 
 - **Kachelanbieter:** `TileUrl` muss HTTPS sein. Die Attribution des Anbieters ist Pflicht und wird in der Karte angezeigt. Für den Unternehmenseinsatz mit vielen Nutzern einen kommerziellen Anbieter oder eigenen Tile-Server verwenden (OSM Tile Usage Policy).
+- **Trassen und Routing-Server** (auch in der App über ⚙ einstellbar):
+  - `RouteMaxGapMeters`: Abstand, ab dem eine neue Trasse beginnt.
+  - `RoadMatchUrl`: Valhalla-kompatibler Server (HTTPS, HTTP nur für `localhost`). Für Firmen empfohlen: eigener Valhalla-Server.
+  - `RoadMatchProfile`: `pedestrian`, `bicycle` oder `auto`.
+  - `RoadMatchMaxDeviationMeters`: Grenze, ab der ein Foto nicht mehr an einen Weg gezogen wird.
 - **Ausgabeordner:** Er kann auf einem Netzlaufwerk liegen. Geschrieben wird atomar, mit Temp-Datei im Zielordner.
 - **KI-Vorlage:** Unternehmensweite Vorgaben (Felder, Budget, Anbieter) als JSON verteilen und im KI-Fenster laden. Die Vorlage wird beim Laden validiert; unsichere Einstellungen werden abgelehnt, etwa Rechte aus Bildern ableiten, Original senden, exakte GPS-Daten senden oder automatischer Anbieterwechsel.
 - **Umgebungsvariablen** (optional, z. B. per GPO):
@@ -85,6 +95,7 @@ Soll die KI im Unternehmen nicht genutzt werden: keinen Schlüssel ausgeben und 
 | `api.openai.com` | OpenAI | nur KI |
 | `<ressource>.openai.azure.com`, `login.microsoftonline.com` | Azure OpenAI, Entra ID | nur KI (Azure) |
 | `generativelanguage.googleapis.com` | Gemini | nur KI (Gemini) |
+| `valhalla1.openstreetmap.de` oder eigener Valhalla-Server | „Trassen an Wege anlegen“ (nur Koordinaten, nur nach Klick) | optional |
 
 Die Karte lädt Leaflet lokal, es gibt keine CDN-Aufrufe.
 
